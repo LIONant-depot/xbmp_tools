@@ -5,6 +5,6 @@ namespace xbmp::tools::loader
     ,   FAILURE
     };
 
-    error* LoadDSS( xcore::bitmap& Bitmap, const char* pFileName ) noexcept;
-
+    error* LoadDSS      ( xcore::bitmap& Bitmap, const char* pFileName ) noexcept;
+    error* LoadSTDImage ( xcore::bitmap& Bitmap, const char* pFileName ) noexcept;
 }

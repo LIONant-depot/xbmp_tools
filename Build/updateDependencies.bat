@@ -17,10 +17,19 @@ powershell write-host -fore White XBMP_TOOLS - DOWNLOADING DEPENDENCIES
 powershell write-host -fore White ------------------------------------------------------------------------------------------------------
 echo.
 
+rem ------------------------------------------------------------
+rem TINY DDS LOADER
+rem ------------------------------------------------------------
 rmdir "../dependencies/tinyddsloader" /S /Q
 git clone https://github.com/benikabocha/tinyddsloader.git "../dependencies/tinyddsloader"
 if %ERRORLEVEL% GEQ 1 goto :PAUSE
 
+rem ------------------------------------------------------------
+rem STB IMAGE
+rem ------------------------------------------------------------
+rmdir "../dependencies/stb" /S /Q
+git clone --recurse-submodules -j8  https://github.com/nothings/stb.git "../dependencies/stb"
+if %ERRORLEVEL% GEQ 1 goto :PAUSE
 
 
 rem ------------------------------------------------------------
