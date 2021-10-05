@@ -67,6 +67,7 @@ namespace xbmp::tools
 
 #include "xbmp_tools_loaders.h"
 #include "xbmp_tools_writers.h"
+#include "xbmp_tools_atlas.h"
 
 //---------------------------------------------------------------------------
 // END
