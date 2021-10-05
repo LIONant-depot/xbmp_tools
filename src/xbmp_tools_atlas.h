@@ -54,8 +54,6 @@ namespace xbmp::tools
             int         m_Perimeter;
         };
 
-        // rectangle implementing left/top/right/bottom behaviour
-
         struct rect_ltrb
         {
                         rect_ltrb           ( void );
