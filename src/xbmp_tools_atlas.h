@@ -7,7 +7,7 @@ namespace xbmp::tools
     // v        - pointer to array of pointers to your rectangle (" ** " design is for the
     //            sake of sorting speed and const means that the pointers will point to the same rectangles)
     // n        - pointers' count
-    // max_side - maximum bins' side - algorithm works with square bins (in the end it may trim them
+    // max_size - maximum bins' size - algorithm works with square bins (in the end it may trim them
     //            to rectangular form). for the algorithm to finish faster, pass a reasonable value
     //            (unreasonable would be passing 1 000 000 000 for packing 4 50x50 rectangles).
     // bins     - vector to which the function will push_back() created bins, each of them containing vector
@@ -115,6 +115,6 @@ namespace xbmp::tools
         , ENUM_COUNT
         };
 
-        bool  Pack( rect_xywhf* const* pV, int nRects, int MaxSide, xcore::vector<bin>& bins, pack_mode Mode = pack_mode::ANY_SIZE);
+        bool  Pack( rect_xywhf* const* pV, int nRects, int MaxSize, xcore::vector<bin>& bins, pack_mode Mode = pack_mode::ANY_SIZE);
     };
 }
