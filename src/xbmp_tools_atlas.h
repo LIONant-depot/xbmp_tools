@@ -97,7 +97,7 @@ namespace xbmp::tools
             void        Flip                ( void );
             
             bool        m_bFlipped;
-            rect_xywhf* m_pNextFree;
+            rect_xywhf* m_pNextFree{nullptr};
         };
 
         struct bin
