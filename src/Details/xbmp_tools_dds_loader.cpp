@@ -64,16 +64,9 @@ namespace xbmp::tools::loader {
 
     //-------------------------------------------------------------------------------
 
-    error* LoadDSS(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    error* LoadDSS(xcore::bitmap& Bitmap, tinyddsloader::DDSFile& Image ) noexcept
     {
         using namespace tinyddsloader;
-
-        DDSFile Image;
-
-        if( auto Err = Image.Load(pFileName); Err )
-        {
-            return dds::error_codes_v[Err];
-        }
 
         // Make sure we can handle the texture
         if( Image.GetTextureDimension() == DDSFile::TextureDimension::Unknown 
@@ -186,6 +179,38 @@ namespace xbmp::tools::loader {
         );
 
         return nullptr;
+    }
+
+    //-------------------------------------------------------------------------------
+
+    error* LoadDSS(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    {
+        using namespace tinyddsloader;
+
+        DDSFile Image;
+
+        if (auto Err = Image.Load(pFileName); Err)
+        {
+            return dds::error_codes_v[Err];
+        }
+
+        return LoadDSS(Bitmap, Image);
+    }
+
+    //-------------------------------------------------------------------------------
+
+    error* LoadDSS(xcore::bitmap& Bitmap, std::span<const std::byte> Buffer ) noexcept
+    {
+        using namespace tinyddsloader;
+
+        DDSFile Image;
+
+        if (auto Err = Image.Load( reinterpret_cast<const std::uint8_t*>(Buffer.data()), Buffer.size()); Err)
+        {
+            return dds::error_codes_v[Err];
+        }
+
+        return LoadDSS(Bitmap, Image);
     }
 
 //----------------------------------------------------------
