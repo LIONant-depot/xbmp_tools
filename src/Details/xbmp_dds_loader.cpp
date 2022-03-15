@@ -54,6 +54,8 @@ namespace xbmp::tools::loader {
                     return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::B8G8R8X8_Typeless:
                     return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::LINEAR, true };
+                case DDSFile::DXGIFormat::BC5_UNorm:
+                    return std::tuple{ xcore::bitmap::format::BC5_8RG, xcore::bitmap::color_space::LINEAR, true };
             }
 
             return {};
