@@ -178,6 +178,8 @@ namespace xbmp::tools::loader {
         , nFrames
         );
 
+        Bitmap.setColorSpace(ColorSpace);
+
         return nullptr;
     }
 
