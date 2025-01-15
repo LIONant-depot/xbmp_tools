@@ -36,6 +36,14 @@ namespace xbmp::tools::loader {
                     return std::tuple{ xcore::bitmap::format::BC3_8RGBA, xcore::bitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC3_UNorm_SRGB:
                     return std::tuple{ xcore::bitmap::format::BC3_8RGBA, xcore::bitmap::color_space::SRGB, false };
+                case DDSFile::DXGIFormat::BC4_UNorm:
+                    return std::tuple{ xcore::bitmap::format::BC4_4R,    xcore::bitmap::color_space::LINEAR, false };
+                case DDSFile::DXGIFormat::BC5_UNorm:
+                    return std::tuple{ xcore::bitmap::format::BC5_8RG,   xcore::bitmap::color_space::LINEAR, false };
+                case DDSFile::DXGIFormat::BC7_UNorm:
+                    return std::tuple{ xcore::bitmap::format::BC7_8RGBA, xcore::bitmap::color_space::LINEAR, false };
+                case DDSFile::DXGIFormat::BC7_UNorm_SRGB:
+                    return std::tuple{ xcore::bitmap::format::BC7_8RGBA, xcore::bitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::R8G8B8A8_UNorm:
                     return std::tuple{ xcore::bitmap::format::R8G8B8A8, xcore::bitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:
@@ -54,8 +62,6 @@ namespace xbmp::tools::loader {
                     return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::B8G8R8X8_Typeless:
                     return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::LINEAR, true };
-                case DDSFile::DXGIFormat::BC5_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC5_8RG, xcore::bitmap::color_space::LINEAR, false };
             }
 
             return {};
@@ -177,6 +183,8 @@ namespace xbmp::tools::loader {
         , Image.GetMipCount()
         , nFrames
         );
+
+        Bitmap.setColorSpace(ColorSpace);
 
         return nullptr;
     }
