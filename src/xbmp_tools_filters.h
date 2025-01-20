@@ -8,4 +8,8 @@ namespace xbmp::tools::filters
     // which can solved the black border issue when using alpha blending
     void FillAvrColorBaseOnAlpha(xcore::bitmap& Bitmap, const std::uint8_t AlphaThreshold = 128, std::uint32_t Depth = 0xffffffff) noexcept;
 
+
+    // Makes the bitmap tilable by blending the edges based on a percentage
+    void MakeBitmapTilable( xcore::bitmap& Bitmap, float WidthOverlapPercentage = 0.3f, float HeightOverlapPercentage = 0.3f ) noexcept;
+
 }    

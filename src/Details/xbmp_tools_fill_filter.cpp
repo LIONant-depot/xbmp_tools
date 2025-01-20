@@ -194,4 +194,66 @@ namespace xbmp::tools::filters
             }
         }
     }
+
+    //--------------------------------------------------------------------------------
+
+    void MakeBitmapTilable(xcore::bitmap& Bitmap, float WidthOverlapPercentage, float HeightOverlapPercentage ) noexcept
+    {
+        assert(WidthOverlapPercentage  >= 0);
+        assert(WidthOverlapPercentage  <= 1);
+        assert(HeightOverlapPercentage >= 0);
+        assert(HeightOverlapPercentage <= 1);
+
+        auto       Dest = Bitmap.getMip<xcore::icolor>(0);
+        const auto W    = Bitmap.getWidth();
+        const auto H    = Bitmap.getHeight();
+
+        std::uint32_t MixSize = static_cast<std::uint32_t>(W * WidthOverlapPercentage);
+
+        // Blend right and left edges
+        for (auto y = 0u; y < H; ++y)
+        {
+            for (auto x = 0u; x < MixSize; ++x)
+            {
+                const float alpha = float(x) / MixSize;
+
+                auto& L = Dest[y * W + x];
+                auto& R = Dest[y * W + (W - x - 1)];
+
+                L.m_R = static_cast<std::uint8_t>((1 - alpha) * R.m_R + alpha * L.m_R);
+                L.m_G = static_cast<std::uint8_t>((1 - alpha) * R.m_G + alpha * L.m_G);
+                L.m_B = static_cast<std::uint8_t>((1 - alpha) * R.m_B + alpha * L.m_B);
+                L.m_A = static_cast<std::uint8_t>((1 - alpha) * R.m_A + alpha * L.m_A);
+
+                R.m_R = static_cast<std::uint8_t>((1 - alpha) * L.m_R + alpha * R.m_R);
+                R.m_G = static_cast<std::uint8_t>((1 - alpha) * L.m_G + alpha * R.m_G);
+                R.m_B = static_cast<std::uint8_t>((1 - alpha) * L.m_B + alpha * R.m_B);
+                R.m_A = static_cast<std::uint8_t>((1 - alpha) * L.m_A + alpha * R.m_A);
+            }
+        }
+
+        // Blend top and bottom edges
+        MixSize = static_cast<std::uint32_t>(H * HeightOverlapPercentage);
+
+        for (auto x = 0u; x < W; ++x)
+        {
+            for (auto y = 0u; y < MixSize; ++y)
+            {
+                const float     alpha = float(y) / MixSize;
+
+                auto& T = Dest[y * W + x];
+                auto& B = Dest[x + (H - y - 1) * W];
+
+                T.m_R = static_cast<std::uint8_t>((1 - alpha) * B.m_R + alpha * T.m_R);
+                T.m_G = static_cast<std::uint8_t>((1 - alpha) * B.m_G + alpha * T.m_G);
+                T.m_B = static_cast<std::uint8_t>((1 - alpha) * B.m_B + alpha * T.m_B);
+                T.m_A = static_cast<std::uint8_t>((1 - alpha) * B.m_A + alpha * T.m_A);
+
+                B.m_R = static_cast<std::uint8_t>((1 - alpha) * T.m_R + alpha * B.m_R);
+                B.m_G = static_cast<std::uint8_t>((1 - alpha) * T.m_G + alpha * B.m_G);
+                B.m_B = static_cast<std::uint8_t>((1 - alpha) * T.m_B + alpha * B.m_B);
+                B.m_A = static_cast<std::uint8_t>((1 - alpha) * T.m_A + alpha * B.m_A);
+            }
+        }
+    }
 }
