@@ -110,7 +110,7 @@ namespace xbmp::tools::loader {
             {
                 auto View = Image.GetImageData(i, 0);
                 FaceByteSize += View->m_memSlicePitch;
-                if( View->m_width >= PrevW)
+                if( View->m_width > PrevW)
                 {
                     return -1; 
                 }
