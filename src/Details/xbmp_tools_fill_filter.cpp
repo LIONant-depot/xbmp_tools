@@ -35,26 +35,10 @@ namespace xbmp::tools::filters
 
         xcore::icolor   FinalColor;
 
-        bool            YWrapping   = false;
-        bool            XWrapping   = false;
-        bool            YMirror     = false;
-        bool            XMirror     = false;
-
-        if( Bitmap.getWrapMode() != xcore::bitmap::wrap_mode::UV_BOTH_CLAMP_TO_EDGE )
-        {
-            YWrapping = Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_BOTH_WRAP
-                     || Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_UCLAMP_VWRAP;
-
-            if (!YWrapping) YMirror = Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_BOTH_MIRROR
-                                   || Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_UCLAMP_VMIRROR;
-
-            XWrapping = Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_BOTH_WRAP
-                     || Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_UWRAP_VCLAMP;
-
-            if (!XWrapping) XMirror = Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_BOTH_MIRROR
-                                   || Bitmap.getWrapMode() == xcore::bitmap::wrap_mode::UV_UMIRROR_VCLAMP;
-
-        }
+        const bool YWrapping   = Bitmap.getVWrapMode() == xcore::bitmap::wrap_mode::WRAP;
+        const bool XWrapping   = Bitmap.getUWrapMode() == xcore::bitmap::wrap_mode::WRAP;
+        const bool YMirror     = Bitmap.getVWrapMode() == xcore::bitmap::wrap_mode::MIRROR;
+        const bool XMirror     = Bitmap.getUWrapMode() == xcore::bitmap::wrap_mode::MIRROR;
 
         constexpr auto ComputeWithWrapMode = []( int& v, const bool Wrapping, const bool Mirror, const int Edge ) constexpr ->bool
         {
@@ -203,6 +187,7 @@ namespace xbmp::tools::filters
         assert(WidthOverlapPercentage  <= 1);
         assert(HeightOverlapPercentage >= 0);
         assert(HeightOverlapPercentage <= 1);
+        assert(Bitmap.getFormat() == xcore::bitmap::format::R8G8B8A8);
 
         auto       Dest = Bitmap.getMip<xcore::icolor>(0);
         const auto W    = Bitmap.getWidth();
@@ -256,4 +241,68 @@ namespace xbmp::tools::filters
             }
         }
     }
+
+    //--------------------------------------------------------------------------------
+
+    void MakeBitmapTilableHDR(xcore::bitmap& Bitmap, float WidthOverlapPercentage, float HeightOverlapPercentage ) noexcept
+    {
+        assert(WidthOverlapPercentage  >= 0);
+        assert(WidthOverlapPercentage  <= 1);
+        assert(HeightOverlapPercentage >= 0);
+        assert(HeightOverlapPercentage <= 1);
+        assert(Bitmap.getFormat() == xcore::bitmap::format::R32G32B32A32_FLOAT);
+
+        auto       Dest = Bitmap.getMip<xcore::fcolor>(0);
+        const auto W    = Bitmap.getWidth();
+        const auto H    = Bitmap.getHeight();
+
+        std::uint32_t MixSize = static_cast<std::uint32_t>(W * WidthOverlapPercentage);
+
+        // Blend right and left edges
+        for (auto y = 0u; y < H; ++y)
+        {
+            for (auto x = 0u; x < MixSize; ++x)
+            {
+                const float alpha = float(x) / MixSize;
+
+                auto& L = Dest[y * W + x];
+                auto& R = Dest[y * W + (W - x - 1)];
+
+                L.m_R = (1 - alpha) * R.m_R + alpha * L.m_R;
+                L.m_G = (1 - alpha) * R.m_G + alpha * L.m_G;
+                L.m_B = (1 - alpha) * R.m_B + alpha * L.m_B;
+                L.m_A = (1 - alpha) * R.m_A + alpha * L.m_A;
+
+                R.m_R = (1 - alpha) * L.m_R + alpha * R.m_R;
+                R.m_G = (1 - alpha) * L.m_G + alpha * R.m_G;
+                R.m_B = (1 - alpha) * L.m_B + alpha * R.m_B;
+                R.m_A = (1 - alpha) * L.m_A + alpha * R.m_A;
+            }
+        }
+
+        // Blend top and bottom edges
+        MixSize = static_cast<std::uint32_t>(H * HeightOverlapPercentage);
+
+        for (auto x = 0u; x < W; ++x)
+        {
+            for (auto y = 0u; y < MixSize; ++y)
+            {
+                const float     alpha = float(y) / MixSize;
+
+                auto& T = Dest[y * W + x];
+                auto& B = Dest[x + (H - y - 1) * W];
+
+                T.m_R = (1 - alpha) * B.m_R + alpha * T.m_R;
+                T.m_G = (1 - alpha) * B.m_G + alpha * T.m_G;
+                T.m_B = (1 - alpha) * B.m_B + alpha * T.m_B;
+                T.m_A = (1 - alpha) * B.m_A + alpha * T.m_A;
+
+                B.m_R = (1 - alpha) * T.m_R + alpha * B.m_R;
+                B.m_G = (1 - alpha) * T.m_G + alpha * B.m_G;
+                B.m_B = (1 - alpha) * T.m_B + alpha * B.m_B;
+                B.m_A = (1 - alpha) * T.m_A + alpha * B.m_A;
+            }
+        }
+    }
+
 }

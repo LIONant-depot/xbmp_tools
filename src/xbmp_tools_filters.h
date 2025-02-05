@@ -11,5 +11,6 @@ namespace xbmp::tools::filters
 
     // Makes the bitmap tilable by blending the edges based on a percentage
     void MakeBitmapTilable( xcore::bitmap& Bitmap, float WidthOverlapPercentage = 0.3f, float HeightOverlapPercentage = 0.3f ) noexcept;
+    void MakeBitmapTilableHDR(xcore::bitmap& Bitmap, float WidthOverlapPercentage = 0.3f, float HeightOverlapPercentage = 0.3f) noexcept;
 
 }    
