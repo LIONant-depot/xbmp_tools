@@ -25,10 +25,17 @@ git clone https://github.com/benikabocha/tinyddsloader.git "../dependencies/tiny
 if %ERRORLEVEL% GEQ 1 goto :PAUSE
 
 rem ------------------------------------------------------------
-rem STB IMAGE
+rem STB IMAGE LOADER
 rem ------------------------------------------------------------
 rmdir "../dependencies/stb" /S /Q
 git clone --recurse-submodules -j8  https://github.com/nothings/stb.git "../dependencies/stb"
+if %ERRORLEVEL% GEQ 1 goto :PAUSE
+
+rem ------------------------------------------------------------
+rem EXR IMAGE LOADER
+rem ------------------------------------------------------------
+rmdir "../dependencies/tinyexr" /S /Q
+git clone https://github.com/syoyo/tinyexr.git "../dependencies/tinyexr"
 if %ERRORLEVEL% GEQ 1 goto :PAUSE
 
 
