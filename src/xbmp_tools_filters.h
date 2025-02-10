@@ -13,4 +13,7 @@ namespace xbmp::tools::filters
     void MakeBitmapTilable( xcore::bitmap& Bitmap, float WidthOverlapPercentage = 0.3f, float HeightOverlapPercentage = 0.3f ) noexcept;
     void MakeBitmapTilableHDR(xcore::bitmap& Bitmap, float WidthOverlapPercentage = 0.3f, float HeightOverlapPercentage = 0.3f) noexcept;
 
+    // Covert a 2D Image to a cubemap
+    bool ConvertToCubeMapHDR( xcore::bitmap& CubeMap, const xcore::bitmap& Bitmap, int CubemapResolution, bool bUseBilinear = true ) noexcept;
+    bool ConvertToCubeMap   ( xcore::bitmap& CubeMap, const xcore::bitmap& Bitmap, int CubemapResolution, bool bUseBilinear = true ) noexcept;
 }    
