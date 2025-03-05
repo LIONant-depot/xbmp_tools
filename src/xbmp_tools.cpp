@@ -7,6 +7,8 @@
 #include "Details/xbmp_tools_fill_filter.cpp"
 #include "Details/xbmp_tools_exr_loader.cpp"
 #include "Details/xbmp_tools_2d2cube_filter.cpp"
+#include "Details/xbmp_tools_HEPDP_filter.cpp"
+
 
 
 
