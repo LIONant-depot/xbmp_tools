@@ -103,7 +103,7 @@ namespace xbmp::tools
         struct bin
         {
             rect_wh                    m_Size;
-            xcore::vector<rect_xywhf*> m_Rects;
+            std::vector<rect_xywhf*>   m_Rects;
         };
         
         enum class pack_mode : std::uint8_t
@@ -115,6 +115,6 @@ namespace xbmp::tools
         , ENUM_COUNT
         };
 
-        bool  Pack( rect_xywhf* const* pV, int nRects, int MaxSize, xcore::vector<bin>& bins, pack_mode Mode = pack_mode::ANY_SIZE);
+        bool  Pack( rect_xywhf* const* pV, int nRects, int MaxSize, std::vector<bin>& bins, pack_mode Mode = pack_mode::ANY_SIZE);
     };
 }

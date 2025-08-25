@@ -2,64 +2,66 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #pragma warning( push )
 #pragma warning( disable : 4996 )  // error C4996: 'sprintf': This function or variable may be unsafe.
-#include "../dependencies/stb/stb_image_write.h"
+#include "stb_image_write.h"
 #pragma warning( pop )
 
 namespace xbmp::tools::writers
 {
-    error* SaveSTDImage( const char* pFileName, int W, int H, int Bpp, const std::byte* pData ) noexcept
+    //------------------------------------------------------------------------------
+
+    xerr SaveSTDImage(std::wstring_view FileName, int W, int H, int Bpp, const std::byte* pData ) noexcept
     {
-        if( xcore::string::FindStrI( pFileName, ".png") != -1 )
+        if(iequals( FileName, L".png"))
         {
-            if( 0 == stbi_write_png(pFileName, W, H, Bpp/8, pData, W * Bpp / 8 ) )
-                return error_code< error::FAILURE, error_str("Fail to write a PNG") >;
+            if( 0 == stbi_write_png(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData, W * Bpp / 8))
+                return xerr::create_f<xbmp::tools::state, "Fail to write a PNG" >(); 
         }
-        else if (xcore::string::FindStrI(pFileName, ".bmp") != -1)
+        else if (iequals(FileName, L".bmp"))
         {
-            if (0 == stbi_write_bmp(pFileName, W, H, Bpp / 8, pData ) )
-                return error_code< error::FAILURE, error_str("Fail to write a BMP") >;
+            if (0 == stbi_write_bmp(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData ) )
+                return xerr::create_f<xbmp::tools::state, "Fail to write a BMP" >();
         }
-        else if (xcore::string::FindStrI(pFileName, ".tga") != -1)
+        else if (iequals(FileName, L".tga"))
         {
-            if (0 == stbi_write_tga(pFileName, W, H, Bpp / 8, pData ) )
-                return error_code< error::FAILURE, error_str("Fail to write a TGA") >;
+            if (0 == stbi_write_tga(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData ) )
+                return xerr::create_f<xbmp::tools::state, "Fail to write a TGA" >();
         }
-        else if (xcore::string::FindStrI(pFileName, ".jpg") != -1)
+        else if (iequals(FileName, L".jpg"))
         {
-            if (0 == stbi_write_jpg(pFileName, W, H, Bpp / 8, pData, 90 ) )
-                return error_code< error::FAILURE, error_str("Fail to write a JPG") >;
+            if (0 == stbi_write_jpg(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData, 90 ) )
+                return xerr::create_f<xbmp::tools::state, "Fail to write a JPG" >();
         }
-        else if (xcore::string::FindStrI(pFileName, ".hdr") != -1)
+        else if (iequals(FileName, L".hdr"))
         {
             // int stbi_write_hdr(pFileName, Bitmap.getWidth(), Bitmap.getHeight(), int comp, const float* data);
-            return error_code< error::FAILURE, error_str("Unsupported file format") >;
+            return xerr::create_f<xbmp::tools::state, "Unsupported file format" >(); 
         }
         else
         {
-            return error_code< error::FAILURE, error_str("Unsupported file format") >;
+            return xerr::create_f<xbmp::tools::state, "Unsupported file format" >();
         }
 
-        return nullptr;
+        return {};
     }
 
 
-    error* SaveSTDImage( const char* pFileName, const xcore::bitmap& Bitmap ) noexcept
+    xerr SaveSTDImage( std::wstring_view FileName, const xbitmap& Bitmap ) noexcept
     {
-        xcore::color::format    ColorFmt = xcore::color::format{};
+        xcolor::format    ColorFmt = xcolor::format{};
         switch( Bitmap.getFormat() )
         {
-        case xcore::bitmap::format::R8G8B8A8:   ColorFmt = xcore::color::format{xcore::color::format::type::UINT_32_RGBA_8888}; break;
-        case xcore::bitmap::format::R8G8B8:     ColorFmt = xcore::color::format{xcore::color::format::type::UINT_24_RGB_888  };   break;
-        case xcore::bitmap::format::R5G6B5:     ColorFmt = xcore::color::format{xcore::color::format::type::UINT_16_RGB_565  };   break;
+        case xbitmap::format::R8G8B8A8:   ColorFmt = xcolor::format{xcolor::format::type::UINT_32_RGBA_8888}; break;
+        case xbitmap::format::R8G8B8:     ColorFmt = xcolor::format{xcolor::format::type::UINT_24_RGB_888  };   break;
+        case xbitmap::format::R5G6B5:     ColorFmt = xcolor::format{xcolor::format::type::UINT_16_RGB_565  };   break;
         }
 
-        if( ColorFmt.m_Value == xcore::color::format::type::INVALID )
+        if( ColorFmt.m_Value == xcolor::format::type::INVALID )
         {
-            if( Bitmap.getFormat() >= xcore::bitmap::format::XCOLOR_END )
-                return error_code< error::FAILURE, error_str("Image has the wrong format to the writters. Make sure it has a non-compress format.") >;
+            if( Bitmap.getFormat() >= xbitmap::format::XCOLOR_END )
+                return xerr::create_f<xbmp::tools::state, "Image has the wrong format to the writters. Make sure it has a non-compress format." >();
 
             auto  Data              = std::make_unique<std::byte[]>(Bitmap.getFrameSize());
-            auto  ColorFmt          = xcore::color::format{ static_cast<xcore::color::format::type>( Bitmap.getFormat() ) };
+            auto  ColorFmt          = xcolor::format{ static_cast<xcolor::format::type>( Bitmap.getFormat() ) };
             auto& Descriptor        = ColorFmt.getDescriptor();
             auto  pBitmapData       = Bitmap.getMip<std::byte>(0).data();
             const auto BypePerPixel = Descriptor.m_TB / 8;
@@ -72,9 +74,9 @@ namespace xbmp::tools::writers
             for( int x=0, end_x = Bitmap.getWidth();  x < end_x; ++x )
             {
                 const std::uint32_t D = *reinterpret_cast<const std::uint32_t*>(pBitmapData);
-                xcore::icolor       C = xcore::icolor{ D, ColorFmt };
+                xcolori       C = xcolori{ D, ColorFmt };
 
-                *pData = C.getDataFromColor({xcore::color::format::type::UINT_32_ARGB_8888});
+                *pData = C.getDataFromColor({xcolor::format::type::UINT_32_ARGB_8888});
 
                 pData++;
                 pBitmapData += BypePerPixel;
@@ -83,21 +85,21 @@ namespace xbmp::tools::writers
             //
             // Save it
             //
-            if( auto Err = SaveSTDImage(pFileName, Bitmap.getWidth(), Bitmap.getHeight(), 32, Data.get() ); Err )
+            if( auto Err = SaveSTDImage(FileName, Bitmap.getWidth(), Bitmap.getHeight(), 32, Data.get() ); Err )
                 return Err;
         }
         else
         {
-            auto  ColorFmt   = xcore::color::format{ static_cast<xcore::color::format::type>(Bitmap.getFormat()) };
+            auto  ColorFmt   = xcolor::format{ static_cast<xcolor::format::type>(Bitmap.getFormat()) };
             auto& Descriptor = ColorFmt.getDescriptor();
 
             //
             // Save it
             //
-            if (auto Err = SaveSTDImage(pFileName, Bitmap.getWidth(), Bitmap.getHeight(), Descriptor.m_TB, Bitmap.getMip<std::byte>(0).data() ); Err)
+            if (auto Err = SaveSTDImage(FileName, Bitmap.getWidth(), Bitmap.getHeight(), Descriptor.m_TB, Bitmap.getMip<std::byte>(0).data() ); Err)
                 return Err;
         }
 
-        return nullptr;
+        return {};
     }
 }

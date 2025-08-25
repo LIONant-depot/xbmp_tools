@@ -1,5 +1,6 @@
 #define TINYDDSLOADER_IMPLEMENTATION
-#include "../dependencies/tinyddsloader/tinyddsloader.h"
+#include "tinyddsloader.h"
+#include <optional>
 
 namespace xbmp::tools::loader {
 
@@ -7,61 +8,68 @@ namespace xbmp::tools::loader {
     {
         using namespace tinyddsloader;
 
-        constexpr static auto error_codes_v = std::array<error*,8>
-        { error_code< error::SUCCESS, error_str("Success") >
-        , error_code< error::FAILURE, error_str("Error File Open") >
-        , error_code< error::FAILURE, error_str("Error Read") >
-        , error_code< error::FAILURE, error_str("Error Magic Word") >
-        , error_code< error::FAILURE, error_str("Error Size") >
-        , error_code< error::FAILURE, error_str("Error Verify") >
-        , error_code< error::FAILURE, error_str("Error Not Supported") >
-        , error_code< error::FAILURE, error_str("Error Invalid Data") >
+        //-------------------------------------------------------------------------------------
+
+        inline static xerr getErrorCode( int Index ) noexcept
+        {
+            switch (Index)
+            {
+                case 0: return {};
+                case 1: return xerr::create_f<xbmp::tools::state, "Error File Open">();
+                case 2: return xerr::create_f<xbmp::tools::state, "Error Read">();
+                case 3: return xerr::create_f<xbmp::tools::state, "Error Magic Word">();
+                case 4: return xerr::create_f<xbmp::tools::state, "Error Size">();
+                case 5: return xerr::create_f<xbmp::tools::state, "Error Verify">();
+                case 6: return xerr::create_f<xbmp::tools::state, "Error Not Supported">();
+                case 7: return xerr::create_f<xbmp::tools::state, "Error Invalid Data">();
+            }
+            return xerr::create_f<xbmp::tools::state, "Unkown">();
         };
 
         //-------------------------------------------------------------------------------------
 
-        std::optional<std::tuple<xcore::bitmap::format, xcore::bitmap::color_space, bool>> ConvertFormat( DDSFile::DXGIFormat Format ) noexcept
+        std::optional<std::tuple<xbitmap::format, xbitmap::color_space, bool>> ConvertFormat( DDSFile::DXGIFormat Format ) noexcept
         {
             switch ( Format )
             {
                 case DDSFile::DXGIFormat::BC1_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC1_4RGBA1, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::BC1_4RGBA1, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC1_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::BC1_4RGBA1, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::BC1_4RGBA1, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::BC2_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC2_8RGBA, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::BC2_8RGBA, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC2_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::BC2_8RGBA, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::BC2_8RGBA, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::BC3_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC3_8RGBA, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::BC3_8RGBA, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC3_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::BC3_8RGBA, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::BC3_8RGBA, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::BC4_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC4_4R,    xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::BC4_4R,    xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC5_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC5_8RG,   xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::BC5_8RG,   xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC7_UNorm:
-                    return std::tuple{ xcore::bitmap::format::BC7_8RGBA, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::BC7_8RGBA, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::BC7_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::BC7_8RGBA, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::BC7_8RGBA, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::R8G8B8A8_UNorm:
-                    return std::tuple{ xcore::bitmap::format::R8G8B8A8, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::R8G8B8A8, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::R8G8B8A8_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::R8G8B8A8, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::R8G8B8A8, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::R8G8B8A8_SNorm:
-                    return std::tuple{ xcore::bitmap::format::R8G8B8A8, xcore::bitmap::color_space::LINEAR, true };
+                    return std::tuple{ xbitmap::format::R8G8B8A8, xbitmap::color_space::LINEAR, true };
                 case DDSFile::DXGIFormat::B8G8R8A8_UNorm:
-                    return std::tuple{ xcore::bitmap::format::B8G8R8A8, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::B8G8R8A8, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::B8G8R8A8_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::B8G8R8A8, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::B8G8R8A8, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::B8G8R8A8_Typeless:
-                    return std::tuple{ xcore::bitmap::format::B8G8R8A8, xcore::bitmap::color_space::LINEAR, true };
+                    return std::tuple{ xbitmap::format::B8G8R8A8, xbitmap::color_space::LINEAR, true };
                 case DDSFile::DXGIFormat::B8G8R8X8_UNorm:
-                    return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::LINEAR, false };
+                    return std::tuple{ xbitmap::format::B8G8R8U8, xbitmap::color_space::LINEAR, false };
                 case DDSFile::DXGIFormat::B8G8R8X8_UNorm_SRGB:
-                    return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::SRGB, false };
+                    return std::tuple{ xbitmap::format::B8G8R8U8, xbitmap::color_space::SRGB, false };
                 case DDSFile::DXGIFormat::B8G8R8X8_Typeless:
-                    return std::tuple{ xcore::bitmap::format::B8G8R8U8, xcore::bitmap::color_space::LINEAR, true };
+                    return std::tuple{ xbitmap::format::B8G8R8U8, xbitmap::color_space::LINEAR, true };
             }
 
             return {};
@@ -70,7 +78,7 @@ namespace xbmp::tools::loader {
 
     //-------------------------------------------------------------------------------
 
-    error* LoadDSS(xcore::bitmap& Bitmap, tinyddsloader::DDSFile& Image ) noexcept
+    xerr LoadDSS(xbitmap& Bitmap, tinyddsloader::DDSFile& Image ) noexcept
     {
         using namespace tinyddsloader;
 
@@ -78,28 +86,28 @@ namespace xbmp::tools::loader {
         if( Image.GetTextureDimension() == DDSFile::TextureDimension::Unknown 
          || Image.GetTextureDimension() == DDSFile::TextureDimension::Texture3D )
         {
-            return error_code< error::FAILURE, error_str("Unsupported dimension of texture") >;
+            return xerr::create_f<xbmp::tools::state, "Unsupported dimension of texture">();
         }
 
         // get basic information about the texture
-        xcore::bitmap::format       Format;
-        xcore::bitmap::color_space  ColorSpace;
+        xbitmap::format       Format;
+        xbitmap::color_space  ColorSpace;
         bool                        isSigned;
         if( auto E = dds::ConvertFormat( Image.GetFormat() ); E )
         {
-            Format     = std::get<xcore::bitmap::format>(*E);
-            ColorSpace = std::get<xcore::bitmap::color_space>(*E);
+            Format     = std::get<xbitmap::format>(*E);
+            ColorSpace = std::get<xbitmap::color_space>(*E);
             isSigned   = std::get<bool>(*E);
         }
         else
         {
-            return error_code< error::FAILURE, error_str("Unsupported texture format") >;
+            return xerr::create_f<xbmp::tools::state, "Unsupported texture format">();
         }
 
         //
         // Prepare the memory
         //
-        const auto MipTableBytes = Image.GetMipCount() * sizeof(xcore::bitmap::mip);
+        const auto MipTableBytes = Image.GetMipCount() * sizeof(xbitmap::mip);
         const auto FaceByteSize  = [&]
         {
             auto FaceByteSize = 0;
@@ -119,7 +127,7 @@ namespace xbmp::tools::loader {
 
             return FaceByteSize;
         }();
-        if(FaceByteSize == -1 ) return error_code< error::FAILURE, error_str("mips are organized incorrectly") >;
+        if(FaceByteSize == -1 ) return xerr::create_f<xbmp::tools::state, "mips are organized incorrectly">();
 
         const auto nSubFaces     = Image.IsCubemap() ? 6u : 1u;
         const auto FrameByteSize = FaceByteSize * nSubFaces;
@@ -130,7 +138,7 @@ namespace xbmp::tools::loader {
         // Copy memory
         //
         auto Memory     = std::make_unique<std::byte[]>(TotalByteSize);
-        auto pMipOffset = reinterpret_cast<xcore::bitmap::mip*>(Memory.get());
+        auto pMipOffset = reinterpret_cast<xbitmap::mip*>(Memory.get());
         auto pFrame     = reinterpret_cast<std::byte*>(&pMipOffset[Image.GetMipCount()]);
 
         // Set the very first offset
@@ -154,14 +162,14 @@ namespace xbmp::tools::loader {
                     else
                     {
                         if( pMipOffset[iMip].m_Offset != static_cast<int>(ByteSize) )
-                            return error_code< error::FAILURE, error_str("Unexcepted mipmap offset") >;
+                            return xerr::create_f<xbmp::tools::state, "Unexcepted mipmap offset">();
                     }
 
                     // Make sure that the size formula follows what we expect
                     if( std::max( 1u, (TopMipView->m_height>>iMip)) != View->m_height 
                      || std::max( 1u, (TopMipView->m_width >>iMip)) != View->m_width )
                     {
-                        return error_code< error::FAILURE, error_str("Unexcepted mipmap size formulation") >;
+                        return xerr::create_f<xbmp::tools::state, "Unexcepted mipmap size formulation">();
                     }
 
                     // Copy the mip data
@@ -186,12 +194,12 @@ namespace xbmp::tools::loader {
 
         Bitmap.setColorSpace(ColorSpace);
 
-        return nullptr;
+        return {};
     }
 
     //-------------------------------------------------------------------------------
 
-    error* LoadDSS(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadDSS(xbitmap& Bitmap, const char* pFileName) noexcept
     {
         using namespace tinyddsloader;
 
@@ -199,7 +207,7 @@ namespace xbmp::tools::loader {
 
         if (auto Err = Image.Load(pFileName); Err)
         {
-            return dds::error_codes_v[Err];
+            return dds::getErrorCode(Err);
         }
 
         return LoadDSS(Bitmap, Image);
@@ -207,7 +215,7 @@ namespace xbmp::tools::loader {
 
     //-------------------------------------------------------------------------------
 
-    error* LoadDSS(xcore::bitmap& Bitmap, std::span<const std::byte> Buffer ) noexcept
+    xerr LoadDSS(xbitmap& Bitmap, std::span<const std::byte> Buffer ) noexcept
     {
         using namespace tinyddsloader;
 
@@ -215,7 +223,7 @@ namespace xbmp::tools::loader {
 
         if (auto Err = Image.Load( reinterpret_cast<const std::uint8_t*>(Buffer.data()), Buffer.size()); Err)
         {
-            return dds::error_codes_v[Err];
+            return dds::getErrorCode(Err);
         }
 
         return LoadDSS(Bitmap, Image);

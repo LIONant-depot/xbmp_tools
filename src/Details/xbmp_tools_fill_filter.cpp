@@ -2,12 +2,12 @@ namespace xbmp::tools::filters
 {
     //--------------------------------------------------------------------------------
 
-    void ForcePunchThroughAlpha(xcore::bitmap& Bitmap, int AlphaThreshold ) noexcept
+    void ForcePunchThroughAlpha(xbitmap& Bitmap, int AlphaThreshold ) noexcept
     {
-        assert( Bitmap.getFormat() == xcore::bitmap::format::R8G8B8A8 );
+        assert( Bitmap.getFormat() == xbitmap::format::R8G8B8A8 );
         assert(Bitmap.getMipCount() == 1);
 
-        auto ColorView = Bitmap.getMip<xcore::icolor>(0);
+        auto ColorView = Bitmap.getMip<xcolori>(0);
 
         for (auto& E : ColorView )
         {
@@ -19,12 +19,12 @@ namespace xbmp::tools::filters
     //--------------------------------------------------------------------------------
 
     static
-    xcore::icolor ComputetAvgSurroundingOpaqueColor(const xcore::bitmap& Bitmap, int TexelX, int TexelY, std::uint8_t AlphaThreshold ) noexcept
+    xcolori ComputetAvgSurroundingOpaqueColor(const xbitmap& Bitmap, int TexelX, int TexelY, std::uint8_t AlphaThreshold ) noexcept
     {
-        assert(Bitmap.getFormat() == xcore::bitmap::format::R8G8B8A8);
+        assert(Bitmap.getFormat() == xbitmap::format::R8G8B8A8);
         assert(Bitmap.getMipCount() == 1);
 
-        const auto      Color   = Bitmap.getMip<xcore::icolor>(0);
+        const auto      Color   = Bitmap.getMip<xcolori>(0);
         const int       Width   = static_cast<int>(Bitmap.getWidth());
         const int       Height  = static_cast<int>(Bitmap.getHeight());
 
@@ -33,12 +33,12 @@ namespace xbmp::tools::filters
         std::uint32_t   SumB        = 0;
         std::uint32_t   SumTotal    = 0;
 
-        xcore::icolor   FinalColor;
+        xcolori   FinalColor;
 
-        const bool YWrapping   = Bitmap.getVWrapMode() == xcore::bitmap::wrap_mode::WRAP;
-        const bool XWrapping   = Bitmap.getUWrapMode() == xcore::bitmap::wrap_mode::WRAP;
-        const bool YMirror     = Bitmap.getVWrapMode() == xcore::bitmap::wrap_mode::MIRROR;
-        const bool XMirror     = Bitmap.getUWrapMode() == xcore::bitmap::wrap_mode::MIRROR;
+        const bool YWrapping   = Bitmap.getVWrapMode() == xbitmap::wrap_mode::WRAP;
+        const bool XWrapping   = Bitmap.getUWrapMode() == xbitmap::wrap_mode::WRAP;
+        const bool YMirror     = Bitmap.getVWrapMode() == xbitmap::wrap_mode::MIRROR;
+        const bool XMirror     = Bitmap.getUWrapMode() == xbitmap::wrap_mode::MIRROR;
 
         constexpr auto ComputeWithWrapMode = []( int& v, const bool Wrapping, const bool Mirror, const int Edge ) constexpr ->bool
         {
@@ -106,13 +106,13 @@ namespace xbmp::tools::filters
 
     //--------------------------------------------------------------------------------
 
-    void FillAvrColorBaseOnAlpha(xcore::bitmap& Bitmap, const std::uint8_t AlphaThreshold, std::uint32_t Depth) noexcept
+    void FillAvrColorBaseOnAlpha(xbitmap& Bitmap, const std::uint8_t AlphaThreshold, std::uint32_t Depth) noexcept
     {
-        assert(Bitmap.getFormat() == xcore::bitmap::format::R8G8B8A8);
+        assert(Bitmap.getFormat() == xbitmap::format::R8G8B8A8);
         assert(Bitmap.getMipCount() == 1);
 
         // Allocate our working buffers
-        std::array<xcore::bitmap, 2> Bitmaps;
+        std::array<xbitmap, 2> Bitmaps;
         for (auto& E : Bitmaps)
             E.CreateBitmap(Bitmap.getWidth(), Bitmap.getHeight());
 
@@ -128,8 +128,8 @@ namespace xbmp::tools::filters
         while(Depth--)
         {
             int         PixelChanged    = 0;
-            const auto  CS              = Bitmaps[    DepthIndex].getMip<xcore::icolor>(0);
-            auto        CD              = Bitmaps[1 - DepthIndex].getMip<xcore::icolor>(0);
+            const auto  CS              = Bitmaps[    DepthIndex].getMip<xcolori>(0);
+            auto        CD              = Bitmaps[1 - DepthIndex].getMip<xcolori>(0);
 
             for( auto y=0u ; y<Height; ++y )
             {
@@ -167,8 +167,8 @@ namespace xbmp::tools::filters
         // Note that we don't overrite the alpha channel since we used it as a flag
         //
         {
-            const auto CS = Bitmaps[DepthIndex].getMip<xcore::icolor>(0);
-            auto       CD = Bitmap.getMip<xcore::icolor>(0);
+            const auto CS = Bitmaps[DepthIndex].getMip<xcolori>(0);
+            auto       CD = Bitmap.getMip<xcolori>(0);
 
             for ( auto i = 0; i< CS.size(); ++i )
             {
@@ -181,15 +181,15 @@ namespace xbmp::tools::filters
 
     //--------------------------------------------------------------------------------
 
-    void MakeBitmapTilable(xcore::bitmap& Bitmap, float WidthOverlapPercentage, float HeightOverlapPercentage ) noexcept
+    void MakeBitmapTilable(xbitmap& Bitmap, float WidthOverlapPercentage, float HeightOverlapPercentage ) noexcept
     {
         assert(WidthOverlapPercentage  >= 0);
         assert(WidthOverlapPercentage  <= 1);
         assert(HeightOverlapPercentage >= 0);
         assert(HeightOverlapPercentage <= 1);
-        assert(Bitmap.getFormat() == xcore::bitmap::format::R8G8B8A8);
+        assert(Bitmap.getFormat() == xbitmap::format::R8G8B8A8);
 
-        auto       Dest = Bitmap.getMip<xcore::icolor>(0);
+        auto       Dest = Bitmap.getMip<xcolori>(0);
         const auto W    = Bitmap.getWidth();
         const auto H    = Bitmap.getHeight();
 
@@ -245,15 +245,15 @@ namespace xbmp::tools::filters
 
     //--------------------------------------------------------------------------------
 
-    void MakeBitmapTilableHDR(xcore::bitmap& Bitmap, float WidthOverlapPercentage, float HeightOverlapPercentage ) noexcept
+    void MakeBitmapTilableHDR(xbitmap& Bitmap, float WidthOverlapPercentage, float HeightOverlapPercentage ) noexcept
     {
         assert(WidthOverlapPercentage  >= 0);
         assert(WidthOverlapPercentage  <= 1);
         assert(HeightOverlapPercentage >= 0);
         assert(HeightOverlapPercentage <= 1);
-        assert(Bitmap.getFormat() == xcore::bitmap::format::R32G32B32A32_FLOAT);
+        assert(Bitmap.getFormat() == xbitmap::format::R32G32B32A32_FLOAT);
 
-        auto       Dest = Bitmap.getMip<xcore::fcolor>(0);
+        auto       Dest = Bitmap.getMip<xcolorf>(0);
         const auto W    = Bitmap.getWidth();
         const auto H    = Bitmap.getHeight();
 

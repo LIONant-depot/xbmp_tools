@@ -1,5 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "../dependencies/stb/stb_image.h"
+#include "stb_image.h"
 
 namespace xbmp::tools::loader
 {
@@ -196,14 +196,14 @@ namespace xbmp::tools::loader
     }
 
 
-    error* LoadSTDImage(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadSTDImage(xbitmap& Bitmap, const char* pFileName) noexcept
     {
         int nChannels;
         int W, H;
         unsigned char* pData;
 
         if( pData = stbi_load(pFileName, &W, &H, &nChannels, 0 ); nullptr == pData )
-            return error_code< error::FAILURE, error_str("Fail to load image") >;
+            return xerr::create_f<xbmp::tools::state, "Fail to load image">();
 
         const auto DataSize      = (W * H * nChannels * sizeof(std::uint8_t));
         const auto TotalDataSize = DataSize + sizeof(int);
@@ -219,14 +219,14 @@ namespace xbmp::tools::loader
         stbi_image_free(pData);
 
 
-        xcore::bitmap::format Fmt;
+        xbitmap::format Fmt;
         switch(nChannels*8)
         {
-        case 32: Fmt = xcore::bitmap::format::R8G8B8A8; break;
-        case 24: Fmt = xcore::bitmap::format::R8G8B8; break;
-        case 16: Fmt = xcore::bitmap::format::R5G6B5; break;
+        case 32: Fmt = xbitmap::format::R8G8B8A8; break;
+        case 24: Fmt = xbitmap::format::R8G8B8; break;
+        case 16: Fmt = xbitmap::format::R5G6B5; break;
         default:
-            return error_code< error::FAILURE, error_str("Unkown pixel depth (bits per pixel) in loaded image") >;
+            return xerr::create_f<xbmp::tools::state, "Unkown pixel depth (bits per pixel) in loaded image" >();
         };
 
         Bitmap.setup
@@ -240,17 +240,17 @@ namespace xbmp::tools::loader
         , 1
         );
 
-        return nullptr;
+        return {};
     }
 
-    error* LoadHDRSTDImage(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadHDRSTDImage(xbitmap& Bitmap, const char* pFileName) noexcept
     {
         int         nChannels;
         int         W, H;
         float*      pData;
 
         if( pData = stbi_loadf(pFileName, &W, &H, &nChannels, 0 ); nullptr == pData )
-            return error_code< error::FAILURE, error_str("Fail to hdr load image") >;
+            return xerr::create_f<xbmp::tools::state, "Fail to hdr load image" >(); 
 
         const auto DataSize      = (W * H * nChannels * sizeof(float));
         const auto TotalDataSize = DataSize + sizeof(int);
@@ -265,13 +265,13 @@ namespace xbmp::tools::loader
 
         stbi_image_free(pData);
 
-        xcore::bitmap::format Fmt;
+        xbitmap::format Fmt;
         switch(nChannels)
         {
-        case 4: Fmt = xcore::bitmap::format::R32G32B32A32_FLOAT; break;
-        case 3: Fmt = xcore::bitmap::format::R32G32B32_FLOAT;    break;
+        case 4: Fmt = xbitmap::format::R32G32B32A32_FLOAT; break;
+        case 3: Fmt = xbitmap::format::R32G32B32_FLOAT;    break;
         default:
-            return error_code< error::FAILURE, error_str("Unkown pixel depth (bits per pixel) in loaded image") >;
+            return xerr::create_f<xbmp::tools::state, "Unkown pixel depth (bits per pixel) in loaded image" >();
         };
 
         Bitmap.setup
@@ -285,7 +285,7 @@ namespace xbmp::tools::loader
         , 1
         );
 
-        return nullptr;
+        return {};
     }
 
 }

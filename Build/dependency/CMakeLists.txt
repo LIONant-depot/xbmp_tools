@@ -14,3 +14,11 @@ DefineInterfaceComponent(xbmp_tools "dependencies/xcore"
   "src/xbmp_tools_loaders.h"
   "src/xbmp_tools_writers.h"
 )
+if(xbmp_tools_CREATED)
+  AppendComponentIncludes(xbmp_tools
+    "${CMAKE_SOURCE_DIR}/dependencies/stb"
+    "${CMAKE_SOURCE_DIR}/dependencies/tinyddsloader"
+    "${CMAKE_SOURCE_DIR}/dependencies/tinyexr"
+  )
+  endif()
+

@@ -1,5 +1,63 @@
 namespace xbmp::tools{
 
+//-------------------------------------------------------------------------------------------------------
+// int base on size
+//-------------------------------------------------------------------------------------------------------
+template< std::size_t T_SIZE_BYTES >
+using byte_size_uint_t = std::tuple_element_t< T_SIZE_BYTES - 1, std::tuple<std::uint8_t, std::uint16_t, std::uint32_t, std::uint32_t, std::uint64_t, std::uint64_t, std::uint64_t, std::uint64_t>>;
+
+template< std::size_t T_SIZE_BYTES >
+using byte_size_int_t = std::tuple_element_t< T_SIZE_BYTES - 1, std::tuple<std::int8_t, std::int16_t, std::int32_t, std::int32_t, std::int64_t, std::int64_t, std::int64_t, std::int64_t>>;
+
+//-------------------------------------------------------------------------------------------------------
+// given a err returns the equivalent size as either a sing or unsigned err
+//-------------------------------------------------------------------------------------------------------
+template< typename T >
+using to_int_t = byte_size_int_t<sizeof(T)>;
+
+template< typename T >
+using to_uint_t = byte_size_uint_t<sizeof(T)>;
+
+//------------------------------------------------------------------------------
+// Description:
+//      Takes an Address or integer and aligns it up base on the given alignment.
+//      The result in the next number greater than or equal to "n" 
+//      which is a multiple of "a".  For example, x_Align(57,16) is 64.
+// Arguments:
+//     Addr       - This is the address/number/offset to align
+//     AlignTo    - This is a power of 2 number that the user_types wants it to be align to
+//------------------------------------------------------------------------------
+template< typename T > constexpr 
+T Align(T Address, const int AlignTo) noexcept
+{
+    static_assert(std::is_integral<T>::value, "This function only works with integer values");
+    using unsigned_t = to_uint_t<T>;
+    return static_cast<T>((unsigned_t(Address) + (static_cast<unsigned_t>(AlignTo) - 1)) & static_cast<unsigned_t>(-AlignTo));
+}
+
+
+//------------------------------------------------------------------------------
+template< typename T > constexpr
+T NextPowOfTwo(const T x, const int s) noexcept
+{
+    static_assert(std::is_integral<T>::value, "");
+    return static_cast<T>((s == 0) ? 1 + x : NextPowOfTwo<T>(x | (x >> s), s >> 1));
+}
+
+//------------------------------------------------------------------------------
+// Description:
+//      Rounds a number to the next power of two
+// Example:
+//      RoundToNextPowOfTwo(3) == 4   // The next power from #3 is #4
+//------------------------------------------------------------------------------
+template< typename T> constexpr
+T RoundToNextPowOfTwo(const T x) noexcept
+{
+    static_assert(std::is_integral<T>::value, "");
+    return (x == 0) ? 0 : NextPowOfTwo<T>(x - 1, static_cast<int>(4 * sizeof(T)));
+}
+
+
 //-------------------------------------------------------------------------------------------------
 static
 int Area( const atlas::rect_xywhf** pA, const atlas::rect_xywhf** pB )
@@ -197,8 +255,8 @@ atlas::rect_wh TheRect2D( atlas::rect_xywhf* const*             pV
                         , atlas::pack_mode                      Mode
                         , int                                   n
                         , int                                   MaxS
-                        , xcore::vector<atlas::rect_xywhf*>&    Succ
-                        , xcore::vector<atlas::rect_xywhf*>&    UnSucc )
+                        , std::vector<atlas::rect_xywhf*>&      Succ
+                        , std::vector<atlas::rect_xywhf*>&      UnSucc )
 {
     node                    Root;
     const int               nFuncs = 5;
@@ -268,20 +326,20 @@ atlas::rect_wh TheRect2D( atlas::rect_xywhf* const*             pV
             if( Mode == atlas::pack_mode::MULTIPLE_OF_4 ||
                 Mode == atlas::pack_mode::MULTIPLE_OF_8 )
             {
-                NewW = xcore::bits::Align( NewW, Multiple );
-                NewH = xcore::bits::Align( NewH, Multiple );
+                NewW = Align( NewW, Multiple );
+                NewH = Align( NewH, Multiple );
                 
-                xassert( xcore::bits::Align( OldW, Multiple) == OldW );
-                xassert( xcore::bits::Align( OldH, Multiple) == OldH );
+                assert( Align( OldW, Multiple) == OldW );
+                assert( Align( OldH, Multiple) == OldH );
             }
             else if( Mode == atlas::pack_mode::POWER_OF_TWO ||
                      Mode == atlas::pack_mode::POWER_OF_TWO_SQUARE )
             {
-                NewW = xcore::bits::RoundToNextPowOfTwo( NewW );
-                NewH = xcore::bits::RoundToNextPowOfTwo( NewH );
+                NewW = RoundToNextPowOfTwo( NewW );
+                NewH = RoundToNextPowOfTwo( NewH );
                 
-                xassert( xcore::bits::RoundToNextPowOfTwo( OldW ) == OldW );
-                xassert( xcore::bits::RoundToNextPowOfTwo( OldH ) == OldH );
+                assert( RoundToNextPowOfTwo( OldW ) == OldW );
+                assert( RoundToNextPowOfTwo( OldH ) == OldH );
             }
 
             
@@ -368,11 +426,11 @@ atlas::rect_wh TheRect2D( atlas::rect_xywhf* const*             pV
             ClipX = std::max( ClipX, pRet->m_RC.m_Right );
             ClipY = std::max( ClipY, pRet->m_RC.m_Bottom );
             
-            Succ.append() = pV[i];
+            Succ.push_back(pV[i]);
         }
         else
         {
-            UnSucc.append() = pV[i];
+            UnSucc.push_back(pV[i]);
             
             pV[i]->m_bFlipped = false;
         }
@@ -387,13 +445,13 @@ atlas::rect_wh TheRect2D( atlas::rect_xywhf* const*             pV
     if( Mode == atlas::pack_mode::POWER_OF_TWO ||
         Mode == atlas::pack_mode::POWER_OF_TWO_SQUARE )
     {
-        return atlas::rect_wh( xcore::bits::RoundToNextPowOfTwo(ClipX), xcore::bits::RoundToNextPowOfTwo(ClipY) );
+        return atlas::rect_wh( RoundToNextPowOfTwo(ClipX), RoundToNextPowOfTwo(ClipY) );
     }
     else if( Mode == atlas::pack_mode::MULTIPLE_OF_4 ||
              Mode == atlas::pack_mode::MULTIPLE_OF_8 )
     {
         const int Multiple = (Mode == atlas::pack_mode::MULTIPLE_OF_4)?4:8;
-        return atlas::rect_wh( xcore::bits::Align(ClipX, Multiple), xcore::bits::Align(ClipY,Multiple) );
+        return atlas::rect_wh( Align(ClipX, Multiple), Align(ClipY,Multiple) );
     }
     
     return atlas::rect_wh( (ClipX), (ClipY) );
@@ -401,7 +459,7 @@ atlas::rect_wh TheRect2D( atlas::rect_xywhf* const*             pV
 
 //-------------------------------------------------------------------------------------------------
 
-bool atlas::Pack( rect_xywhf* const* pV, int nRects, int MaxSize, xcore::vector<bin>& Bins, pack_mode Mode )
+bool atlas::Pack( rect_xywhf* const* pV, int nRects, int MaxSize, std::vector<bin>& Bins, pack_mode Mode )
 {
     rect_wh TheRect( MaxSize, MaxSize );
     
@@ -413,18 +471,18 @@ bool atlas::Pack( rect_xywhf* const* pV, int nRects, int MaxSize, xcore::vector<
     }
     
     // Create a double buffer array of pointers
-    xcore::vector<rect_xywhf*>     Vec[2];
-    xcore::vector<rect_xywhf*>*    pVec[2] = { &Vec[0], &Vec[1] };
+    std::vector<rect_xywhf*>     Vec[2];
+    std::vector<rect_xywhf*>*    pVec[2] = { &Vec[0], &Vec[1] };
     
     // Set one pointer per rectangle past by the user
-    Vec[0].appendList( nRects );
+    Vec[0].resize( nRects );
     
     // Initialize the firt array to zero
     std::memcpy( &Vec[0][0], pV, sizeof(rect_xywhf*) * nRects );
     
     while(1)
     {
-        bin& NewBin = Bins.append();
+        bin& NewBin = Bins.emplace_back();
         
         NewBin.m_Size = TheRect2D( &((*pVec[0])[0]), Mode, static_cast<int>(pVec[0]->size()), MaxSize, NewBin.m_Rects, *pVec[1] );
         

@@ -2,67 +2,82 @@
 #define _XBMP_TOOLS_H
 #pragma once
 
-#include"xcore.h"
+#include "source/xerr.h"
+#include"source/xbitmap.h"
+#include <memory>
+#include <vector>
+#include <cwctype> // for std::towlower
+
 
 #define XBMP_TOOLS_INLINE __forceinline
 
 namespace xbmp::tools
 {
-    namespace details
+    enum class state : std::uint8_t
+    { OK
+    , FAILURE
+    };
+
+    //-----------------------------------------------------------------------------
+
+    bool iequals(std::wstring_view lhs, std::wstring_view rhs)
     {
-        template< typename T_ERR, std::size_t T_SIZE_V >
-        struct error_info
+        if (lhs.size() != rhs.size()) return false;
+        for (size_t i = 0; i < lhs.size(); ++i)
         {
-            static_assert(sizeof(T_ERR) == 1);
-            T_ERR                           m_Code;
-            std::array<char, T_SIZE_V>      m_Message;
-            constexpr operator T_ERR*() const noexcept
+            assert(std::towlower(rhs[i]) == rhs[i]);
+            if (std::towlower(lhs[i]) != std::towlower(rhs[i]))
             {
-                return const_cast<T_ERR*>(&m_Code);
+                return false;
             }
-            constexpr T_ERR* get( void ) const noexcept
+        }
+        return true;
+    }
+
+    //-----------------------------------------------------------------------------
+
+    inline 
+    std::string wstring_view_to_char(std::wstring_view wsv) noexcept
+    {
+        // Worst-case: each wchar_t could take up to 4 bytes in UTF-8
+        std::string result;
+
+        // Best guess reservation
+        result.reserve(wsv.size() * 4); 
+
+        for (wchar_t wc : wsv) 
+        {
+            // 1-byte UTF-8: ASCII range (U+0000 to U+007F)
+            if (wc <= 0x7F) 
             {
-                return const_cast<T_ERR*>(&m_Code);
+                result += static_cast<char>(wc);
             }
-        };
+            // 2-byte UTF-8: U+0080 to U+07FF
+            else if (wc <= 0x7FF) 
+            {
+                result += static_cast<char>(0xC0 | ((wc >> 6) & 0x1F));
+                result += static_cast<char>(0x80 | (wc & 0x3F));
+            }
+            // 3-byte UTF-8: U+0800 to U+FFFF (excluding surrogate pairs)
+            else if (wc <= 0xFFFF) 
+            {
+                result += static_cast<char>(0xE0 | ((wc >> 12) & 0x0F));
+                result += static_cast<char>(0x80 | ((wc >> 6) & 0x3F));
+                result += static_cast<char>(0x80 | (wc & 0x3F));
+            }
+            // 4-byte UTF-8: U+10000 to U+10FFFF (for characters outside BMP)
+            else if constexpr(sizeof(wchar_t) == 4)
+            {
+                result += static_cast<char>(0xF0 | ((unsigned int(wc) >> 18) & 0x07));
+                result += static_cast<char>(0x80 | ((unsigned int(wc) >> 12) & 0x3F));
+                result += static_cast<char>(0x80 | ((unsigned int(wc) >>  6) & 0x3F));
+                result += static_cast<char>(0x80 | (unsigned int(wc) & 0x3F));
+            }
+        }
+
+        return result;
     }
 
-    template< auto T_ERR_V, auto MSG >
-    static constexpr auto error_code = details::error_info<decltype(T_ERR_V), MSG.size()>{ T_ERR_V, MSG };
-
-    template< std::size_t T_SIZE_V >
-    consteval auto error_str(const char(&Message)[T_SIZE_V] ) noexcept
-    {
-        std::array<char, T_SIZE_V> M;
-        for( int i=0; M[i] = Message[i]; ++i );
-        return M;
-    }
-
-    template<typename T> constexpr
-    const char* getErrorMsg(T pErr) noexcept
-    {
-        assert(pErr != nullptr);
-        return reinterpret_cast<const char*>(&pErr[1]);
-    }
-
-    template<typename T> constexpr
-    int getErrorInt(T pErr) noexcept
-    {
-        return (pErr == nullptr) ? 0 : -(1 + static_cast<int>(*pErr));
-    }
-
-    template<typename ... Args> XBMP_TOOLS_INLINE
-    std::string FormatString(const char* pFmt, Args ... args)
-    {
-        // Extra space for '\0' so + 1
-        int size_s = std::snprintf(nullptr, 0, pFmt, args ...) + 1;
-        if (size_s <= 0) { return "Error formatting string...."; }
-        auto size = static_cast<size_t>(size_s);
-        auto buf = std::make_unique<char[]>(size);
-        std::snprintf(buf.get(), size, pFmt, args ...);
-        // We don't want the '\0' inside so size -1
-        return std::string(buf.get(), buf.get() + size - 1);
-    }
 }
 
 #include "xbmp_tools_loaders.h"
