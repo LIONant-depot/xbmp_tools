@@ -1,6 +1,6 @@
 namespace xbmp::tools::filters
 {
-    void gaussian_blur(xcore::bitmap& dst, const xcore::bitmap& src ) noexcept
+    void gaussian_blur(xbitmap& dst, const xbitmap& src ) noexcept
     {
         constexpr auto kernel = std::array
         {
@@ -18,14 +18,14 @@ namespace xbmp::tools::filters
 
         dst.CreateBitmap(width, height);
 
-        auto SrcData = src.getMip<xcore::icolor>(0);
-        auto DstData = dst.getMip<xcore::icolor>(0);
+        auto SrcData = src.getMip<xcolori>(0);
+        auto DstData = dst.getMip<xcolori>(0);
 
         for (int y = 0; y < height; ++y)
         {
             for (int x = 0; x < width; ++x)
             {
-                xcore::fcolor AccPixel = { 0, 0, 0, 0 };
+                xcolorf AccPixel = { 0, 0, 0, 0 };
                 for (int ky = -k_half; ky <= k_half; ++ky) 
                 {
                     for (int kx = -k_half; kx <= k_half; ++kx) 
@@ -48,7 +48,7 @@ namespace xbmp::tools::filters
 
     // Hybrid Edge Propagation with Detail Preservation(HEPDP)
 
-    void MakeBitmapTilableHEPDP(xcore::bitmap& seamless, const xcore::bitmap& src_image, float WidthOverlapPercentage, float HeightOverlapPercentage) noexcept
+    void MakeBitmapTilableHEPDP(xbitmap& seamless, const xbitmap& src_image, float WidthOverlapPercentage, float HeightOverlapPercentage) noexcept
     {
         const int width       = static_cast<int>(src_image.getWidth());
         const int height      = static_cast<int>(src_image.getHeight());
@@ -58,16 +58,16 @@ namespace xbmp::tools::filters
         //
         // Step 1: Decompose into base and detail layers
         //
-        xcore::bitmap base;
-        xcore::bitmap detail;
+        xbitmap base;
+        xbitmap detail;
 
         detail.CreateBitmap(width, height);
         gaussian_blur(base, src_image);
 
         {
-            auto src_image_pixel = src_image.getMip<xcore::icolor>(0);
-            auto base_pixel      = base.getMip<xcore::icolor>(0);
-            auto detail_pixel    = detail.getMip<xcore::icolor>(0);
+            auto src_image_pixel = src_image.getMip<xcolori>(0);
+            auto base_pixel      = base.getMip<xcolori>(0);
+            auto detail_pixel    = detail.getMip<xcolori>(0);
 
             for (int y = 0; y < height; ++y) 
             {
@@ -94,8 +94,8 @@ namespace xbmp::tools::filters
             // copy image
             seamless.CreateBitmap(width, height);
 
-            auto seamless_pixels = seamless.getMip<xcore::icolor>(0);
-            auto base_pixels     = base.getMip<xcore::icolor>(0);
+            auto seamless_pixels = seamless.getMip<xcolori>(0);
+            auto base_pixels     = base.getMip<xcolori>(0);
 
             memcpy(seamless_pixels.data(), base_pixels.data(), base.getDataSize());
 
@@ -152,8 +152,8 @@ namespace xbmp::tools::filters
         // Step 4: Reintroduce details with tapering
         //
         {
-            auto seamless_pixels = seamless.getMip<xcore::icolor>(0);
-            auto detail_pixel    = detail.getMip<xcore::icolor>(0);
+            auto seamless_pixels = seamless.getMip<xcolori>(0);
+            auto detail_pixel    = detail.getMip<xcolori>(0);
 
             for (int y = 0; y < height; ++y)
             {
@@ -165,7 +165,7 @@ namespace xbmp::tools::filters
                     auto& base_px      = seamless_pixels[y * width + x];
                     auto& detail_px    = detail_pixel[y * width + x];
 
-                    xcore::icolor c; 
+                    xcolori c; 
                     c.m_R = (uint8_t)std::min(255, std::max(0, (int)(base_px.m_R + (detail_px.m_R - 128) * taper)));
                     c.m_G = (uint8_t)std::min(255, std::max(0, (int)(base_px.m_G + (detail_px.m_G - 128) * taper)));
                     c.m_B = (uint8_t)std::min(255, std::max(0, (int)(base_px.m_B + (detail_px.m_B - 128) * taper)));

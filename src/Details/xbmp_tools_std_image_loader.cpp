@@ -1,5 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include "dependencies/xstrtool/source/xstrtool.h"
 
 namespace xbmp::tools::loader
 {
@@ -196,13 +197,13 @@ namespace xbmp::tools::loader
     }
 
 
-    xerr LoadSTDImage(xbitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadSTDImage(xbitmap& Bitmap, std::wstring_view FileName) noexcept
     {
         int nChannels;
         int W, H;
         unsigned char* pData;
 
-        if( pData = stbi_load(pFileName, &W, &H, &nChannels, 0 ); nullptr == pData )
+        if( pData = stbi_load(xstrtool::To(FileName).c_str(), &W, &H, &nChannels, 0); nullptr == pData)
             return xerr::create_f<xbmp::tools::state, "Fail to load image">();
 
         const auto DataSize      = (W * H * nChannels * sizeof(std::uint8_t));
@@ -243,13 +244,13 @@ namespace xbmp::tools::loader
         return {};
     }
 
-    xerr LoadHDRSTDImage(xbitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadHDRSTDImage(xbitmap& Bitmap, std::wstring_view FileName) noexcept
     {
         int         nChannels;
         int         W, H;
         float*      pData;
 
-        if( pData = stbi_loadf(pFileName, &W, &H, &nChannels, 0 ); nullptr == pData )
+        if( pData = stbi_loadf( xstrtool::To(FileName).c_str(), &W, &H, &nChannels, 0); nullptr == pData)
             return xerr::create_f<xbmp::tools::state, "Fail to hdr load image" >(); 
 
         const auto DataSize      = (W * H * nChannels * sizeof(float));

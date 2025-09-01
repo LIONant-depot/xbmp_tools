@@ -1,5 +1,5 @@
 #define TINYDDSLOADER_IMPLEMENTATION
-#include "tinyddsloader.h"
+#include "dependencies/tinyddsloader/tinyddsloader.h"
 #include <optional>
 
 namespace xbmp::tools::loader {

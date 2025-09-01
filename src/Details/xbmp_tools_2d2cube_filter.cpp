@@ -1,9 +1,10 @@
 
+#include "dependencies/xmath/source/xmath_flinear.h"
 namespace xbmp::tools::filters
 {
     //==============================================================================
 
-    bool Validation(const xcore::bitmap& Bitmap, int CubemapResolution)
+    bool Validation(const xbitmap& Bitmap, int CubemapResolution)
     {
 
         return true;
@@ -11,10 +12,10 @@ namespace xbmp::tools::filters
 
     //==============================================================================
 
-    void SetupHDRCubeMap(xcore::bitmap& CubeMap, int CubemapResolution)
+    void SetupHDRCubeMap(xbitmap& CubeMap, int CubemapResolution)
     {
         const auto PixelsPerFace    = CubemapResolution * CubemapResolution;
-        const auto DataSizePerFace  = PixelsPerFace     * sizeof(xcore::fcolor);
+        const auto DataSizePerFace  = PixelsPerFace     * sizeof(xcolorf);
         const auto TotalDataSize    = DataSizePerFace   * 6 + sizeof(int);
         auto       pData            = new std::byte[TotalDataSize];
 
@@ -25,7 +26,7 @@ namespace xbmp::tools::filters
         CubeMap.setup
         ( CubemapResolution
         , CubemapResolution
-        , xcore::bitmap::format::R32G32B32A32_FLOAT
+        , xbitmap::format::R32G32B32A32_FLOAT
         , DataSizePerFace
         , { pData, TotalDataSize }
         , true
@@ -34,16 +35,16 @@ namespace xbmp::tools::filters
         , true
         );
 
-        CubeMap.setUWrapMode(xcore::bitmap::wrap_mode::WRAP);
-        CubeMap.setVWrapMode(xcore::bitmap::wrap_mode::WRAP);
+        CubeMap.setUWrapMode(xbitmap::wrap_mode::WRAP);
+        CubeMap.setVWrapMode(xbitmap::wrap_mode::WRAP);
     }
 
     //==============================================================================
 
-    void SetupCubeMap(xcore::bitmap& CubeMap, int CubemapResolution)
+    void SetupCubeMap(xbitmap& CubeMap, int CubemapResolution)
     {
         const auto PixelsPerFace    = CubemapResolution * CubemapResolution;
-        const auto DataSizePerFace  = PixelsPerFace     * sizeof(xcore::icolor);
+        const auto DataSizePerFace  = PixelsPerFace     * sizeof(xcolori);
         const auto TotalDataSize    = DataSizePerFace   * 6 + sizeof(int);
         auto       pData            = new std::byte[TotalDataSize];
 
@@ -54,7 +55,7 @@ namespace xbmp::tools::filters
         CubeMap.setup
         ( CubemapResolution
         , CubemapResolution
-        , xcore::bitmap::format::R8G8B8A8
+        , xbitmap::format::R8G8B8A8
         , DataSizePerFace
         , { pData, TotalDataSize }
         , true
@@ -63,15 +64,15 @@ namespace xbmp::tools::filters
         , true
         );
 
-        CubeMap.setUWrapMode(xcore::bitmap::wrap_mode::WRAP);
-        CubeMap.setVWrapMode(xcore::bitmap::wrap_mode::WRAP);
+        CubeMap.setUWrapMode(xbitmap::wrap_mode::WRAP);
+        CubeMap.setVWrapMode(xbitmap::wrap_mode::WRAP);
     }
 
     //==============================================================================
     // Reference from: https://github.com/ivarout/HdriToCubemap/blob/master/HdriToCubemap/HdriToCubemap.hpp
     //==============================================================================
     template<typename T>
-    bool _ConvertToCubeMap( xcore::bitmap& CubeMap, const xcore::bitmap& Bitmap, const int CubemapResolution, bool bUseBilinear ) noexcept
+    bool _ConvertToCubeMap( xbitmap& CubeMap, const xbitmap& Bitmap, const int CubemapResolution, bool bUseBilinear ) noexcept
     {
         if (!Validation(Bitmap, CubemapResolution))
             return false;
@@ -79,7 +80,7 @@ namespace xbmp::tools::filters
         // for each face, contains the 3d starting point (corresponding to left bottom pixel),
         // right direction, and up direction in 3d space, correponding to pixel x,y coordinates of each face
         // {{-1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-        static constexpr std::array<std::array<xcore::vector3, 3>, 6> startRightUp
+        static constexpr std::array<std::array<xmath::fvec3d, 3>, 6> startRightUp
         {{
             // OpenGL / Vulkan ordering version
             {{  { 1.0f, -1.0f, -1.0f}, { 0.0f, 0.0f,  1.0f}, {0.0f, 1.0f,  0.0f}}}, // right
@@ -100,7 +101,7 @@ namespace xbmp::tools::filters
             */
         }};
 
-        constexpr auto pi_v                 = static_cast<float>(xcore::math::PI.m_Value);
+        constexpr auto pi_v                 = static_cast<float>(xmath::pi_v.m_Value);
         const auto     fCubemapResolution   = static_cast<float>(CubemapResolution);
         const auto     Width                = Bitmap.getWidth();
         const auto     Height               = Bitmap.getHeight();
@@ -121,7 +122,7 @@ namespace xbmp::tools::filters
             {
                 const auto  PixelDirection3d    = Start + (static_cast<float>(col) * 2.0f + 0.5f) / fCubemapResolution * Right + (static_cast<float>(row) * 2.0f + 0.5f) / fCubemapResolution * Up;
                 const float azimuth             = atan2f(PixelDirection3d.m_X, -PixelDirection3d.m_Z) + pi_v; // add pi to move range to 0-360 deg
-                const float elevation           = atanf(PixelDirection3d.m_Y / sqrtf( xcore::Sqr( PixelDirection3d.m_X ) + xcore::Sqr(PixelDirection3d.m_Z) )) + pi_v / 2.0f;
+                const float elevation           = atanf(PixelDirection3d.m_Y / sqrtf( xmath::Sqr( PixelDirection3d.m_X ) + xmath::Sqr(PixelDirection3d.m_Z) )) + pi_v / 2.0f;
                 const float colHdri             = (azimuth / pi_v / 2.0f) * fWidth; // add pi to azimuth to move range to 0-360 deg
                 const float rowHdri             = (elevation / pi_v) * fHeight;
 
@@ -166,10 +167,10 @@ namespace xbmp::tools::filters
                     const auto f3           = (1 - absfactorRow) *      absfactorCol;
                     const auto f4           =      absfactorRow  *      absfactorCol;
 
-                    Face[col + CubemapResolution * row] = (ImageData[low_idx_column  + Width * low_idx_row]  * f1) +
-                                                          (ImageData[low_idx_column  + Width * high_idx_row] * f2) +
-                                                          (ImageData[high_idx_column + Width * low_idx_row]  * f3) +
-                                                          (ImageData[high_idx_column + Width * high_idx_row] * f4);
+                    Face[col + CubemapResolution * row].setupFromRGBA(   xmath::fvec4(ImageData[low_idx_column  + Width * low_idx_row]  * f1) +
+                                                            xmath::fvec4(ImageData[low_idx_column  + Width * high_idx_row] * f2) +
+                                                            xmath::fvec4(ImageData[high_idx_column + Width * low_idx_row]  * f3) +
+                                                            xmath::fvec4(ImageData[high_idx_column + Width * high_idx_row] * f4) );
                 }
             }
         }
@@ -179,9 +180,9 @@ namespace xbmp::tools::filters
 
     //===================================================================================
 
-    bool ConvertToCubeMapHDR(xcore::bitmap& CubeMap, const xcore::bitmap& Bitmap, const int CubemapResolution, bool bUseBilinear) noexcept
+    bool ConvertToCubeMapHDR(xbitmap& CubeMap, const xbitmap& Bitmap, const int CubemapResolution, bool bUseBilinear) noexcept
     {
-        if (Bitmap.getFormat() != xcore::bitmap::format::R32G32B32A32_FLOAT)
+        if (Bitmap.getFormat() != xbitmap::format::R32G32B32A32_FLOAT)
         {
             std::cout << "[Error] The input image is the the right color format\n";
             return false;
@@ -198,14 +199,14 @@ namespace xbmp::tools::filters
         //
         // Create the cubemap
         //
-        return _ConvertToCubeMap<xcore::fcolor>(CubeMap, Bitmap, CubemapResolution, bUseBilinear);
+        return _ConvertToCubeMap<xcolorf>(CubeMap, Bitmap, CubemapResolution, bUseBilinear);
     }
 
     //===================================================================================
 
-    bool ConvertToCubeMap(xcore::bitmap& CubeMap, const xcore::bitmap& Bitmap, const int CubemapResolution, bool bUseBilinear) noexcept
+    bool ConvertToCubeMap(xbitmap& CubeMap, const xbitmap& Bitmap, const int CubemapResolution, bool bUseBilinear) noexcept
     {
-        if (Bitmap.getFormat() != xcore::bitmap::format::R8G8B8A8)
+        if (Bitmap.getFormat() != xbitmap::format::R8G8B8A8)
         {
             std::cout << "[Error] The input image is the the right color format\n";
             return false;
@@ -222,7 +223,7 @@ namespace xbmp::tools::filters
         //
         // Create the cubemap
         //
-        return _ConvertToCubeMap<xcore::icolor>(CubeMap, Bitmap, CubemapResolution, bUseBilinear);
+        return _ConvertToCubeMap<xcolori>(CubeMap, Bitmap, CubemapResolution, bUseBilinear);
     }
 } //end naespace xbmp::tools::filters
 

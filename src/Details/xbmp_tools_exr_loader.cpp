@@ -2,13 +2,16 @@
 
 #define TINYEXR_USE_MINIZ 0
 #define TINYEXR_USE_STB_ZLIB 1
-#include "zstd.h"
+#include "dependencies/zstd/lib/zstd.h"
 #define TINYEXR_IMPLEMENTATION
-#include "../dependencies/tinyexr/tinyexr.h"
+#include "dependencies/tinyexr/tinyexr.h"
+#include <format>
+
+#include "dependencies/xstrtool/source/xstrtool.h"
 
 namespace xbmp::tools::loader
 {
-    error* LoadEXRImage(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadEXRImage(xbitmap& Bitmap, std::wstring_view FileName) noexcept
     {
         float*          pOut; // width * height * RGBA
         int             Width;
@@ -18,16 +21,16 @@ namespace xbmp::tools::loader
         //
         // Load the image
         //
-        if( auto ret = LoadEXR(&pOut, &Width, &Height, pFileName, &err);  ret != TINYEXR_SUCCESS )
+        if( auto ret = LoadEXR(&pOut, &Width, &Height, xstrtool::To(FileName).c_str(), &err);  ret != TINYEXR_SUCCESS)
         {
             // Display error message
             if (err) 
             {
-                fprintf( stderr, "[Error] : %s\n", err);
+                xerr::LogMessage<state::FAILURE>( std::format("[Error]: Trying to load EXR: {} but found error {}", xstrtool::To(FileName), err) );
                 FreeEXRErrorMessage(err); // release memory of error message.
             }
 
-            return error_code< error::FAILURE, error_str("Unable to load the image") >;
+            return xerr::create_f<state, "Unable to load the EXR image">();
         }
 
         //
@@ -63,7 +66,7 @@ namespace xbmp::tools::loader
         Bitmap.setup
         ( Width
         , Height
-        , xcore::bitmap::format::XCOLOR
+        , xbitmap::format::XCOLOR
         , FrameSize
         , { pData, TotalDataSize }
         , true
@@ -90,10 +93,10 @@ namespace xbmp::tools::loader
         //
         free(pOut);
 
-        return nullptr;
+        return {};
     }
 
-    error* LoadHDREXRImage(xcore::bitmap& Bitmap, const char* pFileName) noexcept
+    xerr LoadHDREXRImage(xbitmap& Bitmap, std::wstring_view FileName) noexcept
     {
         float*          pOut; // width * height * RGBA
         int             Width;
@@ -103,16 +106,16 @@ namespace xbmp::tools::loader
         //
         // Load the image
         //
-        if( auto ret = LoadEXR(&pOut, &Width, &Height, pFileName, &err);  ret != TINYEXR_SUCCESS )
+        if( auto ret = LoadEXR(&pOut, &Width, &Height, xstrtool::To(FileName).c_str(), &err);  ret != TINYEXR_SUCCESS)
         {
             // Display error message
             if (err) 
             {
-                fprintf( stderr, "[Error] : %s\n", err);
+                xerr::LogMessage<state::FAILURE>(std::format("[Error]: Trying to load HDR EXR: {} but found error: {}", xstrtool::To(FileName), err));
                 FreeEXRErrorMessage(err); // release memory of error message.
             }
 
-            return error_code< error::FAILURE, error_str("Unable to load the image") >;
+            return xerr::create_f<state, "Unable to load the HDR EXR image">();
         }
 
         //
@@ -131,7 +134,7 @@ namespace xbmp::tools::loader
         Bitmap.setup
         ( Width
         , Height
-        , xcore::bitmap::format::R32G32B32A32_FLOAT
+        , xbitmap::format::R32G32B32A32_FLOAT
         , FrameSize
         , { pData, TotalDataSize }
         , true
@@ -144,7 +147,7 @@ namespace xbmp::tools::loader
         //
         free(pOut);
 
-        return nullptr;
+        return {};
     }
 }
 

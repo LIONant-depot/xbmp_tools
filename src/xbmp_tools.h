@@ -10,16 +10,16 @@
 
 
 #define XBMP_TOOLS_INLINE __forceinline
-
 namespace xbmp::tools
 {
     enum class state : std::uint8_t
     { OK
     , FAILURE
     };
+#if 0
 
     //-----------------------------------------------------------------------------
-
+    inline
     bool iequals(std::wstring_view lhs, std::wstring_view rhs)
     {
         if (lhs.size() != rhs.size()) return false;
@@ -77,6 +77,7 @@ namespace xbmp::tools
 
         return result;
     }
+#endif
 
 }
 

@@ -5,33 +5,35 @@
 #include "stb_image_write.h"
 #pragma warning( pop )
 
+#include "dependencies/xstrtool/source/xstrtool.h"
+
 namespace xbmp::tools::writers
 {
     //------------------------------------------------------------------------------
 
     xerr SaveSTDImage(std::wstring_view FileName, int W, int H, int Bpp, const std::byte* pData ) noexcept
     {
-        if(iequals( FileName, L".png"))
+        if( xstrtool::findI(FileName, L".png") != std::string::npos )
         {
-            if( 0 == stbi_write_png(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData, W * Bpp / 8))
+            if( 0 == stbi_write_png( xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData, W * Bpp / 8))
                 return xerr::create_f<xbmp::tools::state, "Fail to write a PNG" >(); 
         }
-        else if (iequals(FileName, L".bmp"))
+        else if (xstrtool::findI(FileName, L".bmp") != std::string::npos )
         {
-            if (0 == stbi_write_bmp(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData ) )
+            if (0 == stbi_write_bmp(xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData ) )
                 return xerr::create_f<xbmp::tools::state, "Fail to write a BMP" >();
         }
-        else if (iequals(FileName, L".tga"))
+        else if (xstrtool::findI(FileName, L".tga") != std::string::npos )
         {
-            if (0 == stbi_write_tga(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData ) )
+            if (0 == stbi_write_tga(xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData ) )
                 return xerr::create_f<xbmp::tools::state, "Fail to write a TGA" >();
         }
-        else if (iequals(FileName, L".jpg"))
+        else if (xstrtool::findI(FileName, L".jpg") != std::string::npos )
         {
-            if (0 == stbi_write_jpg(wstring_view_to_char(FileName).c_str(), W, H, Bpp / 8, pData, 90 ) )
+            if (0 == stbi_write_jpg(xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData, 90 ) )
                 return xerr::create_f<xbmp::tools::state, "Fail to write a JPG" >();
         }
-        else if (iequals(FileName, L".hdr"))
+        else if (xstrtool::findI(FileName, L".hdr") != std::string::npos )
         {
             // int stbi_write_hdr(pFileName, Bitmap.getWidth(), Bitmap.getHeight(), int comp, const float* data);
             return xerr::create_f<xbmp::tools::state, "Unsupported file format" >(); 
