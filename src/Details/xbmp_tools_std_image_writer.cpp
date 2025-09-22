@@ -2,7 +2,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #pragma warning( push )
 #pragma warning( disable : 4996 )  // error C4996: 'sprintf': This function or variable may be unsafe.
-#include "stb_image_write.h"
+#include "dependencies/stb/stb_image_write.h"
 #pragma warning( pop )
 
 #include "dependencies/xstrtool/source/xstrtool.h"

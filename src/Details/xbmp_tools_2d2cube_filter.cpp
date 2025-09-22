@@ -1,5 +1,5 @@
 
-#include "dependencies/xmath/source/xmath_flinear.h"
+#include "dependencies/xmath/source/xmath.h"
 namespace xbmp::tools::filters
 {
     //==============================================================================

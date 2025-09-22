@@ -1,5 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "dependencies/stb/stb_image.h"
 #include "dependencies/xstrtool/source/xstrtool.h"
 
 namespace xbmp::tools::loader
