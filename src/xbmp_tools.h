@@ -2,8 +2,8 @@
 #define _XBMP_TOOLS_H
 #pragma once
 
-#include "source/xerr.h"
-#include"source/xbitmap.h"
+#include "dependencies/xerr/source/xerr.h"
+#include "dependencies/xbitmap/source/xbitmap.h"
 #include <memory>
 #include <vector>
 #include <cwctype> // for std::towlower
