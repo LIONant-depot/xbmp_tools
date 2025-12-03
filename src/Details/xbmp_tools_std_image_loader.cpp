@@ -226,6 +226,7 @@ namespace xbmp::tools::loader
         case 32: Fmt = xbitmap::format::R8G8B8A8; break;
         case 24: Fmt = xbitmap::format::R8G8B8; break;
         case 16: Fmt = xbitmap::format::R5G6B5; break;
+        case  8: Fmt = xbitmap::format::R8; break;
         default:
             return xerr::create_f<xbmp::tools::state, "Unkown pixel depth (bits per pixel) in loaded image" >();
         };
