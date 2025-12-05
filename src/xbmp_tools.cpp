@@ -1,3 +1,4 @@
+#include <cmath>
 
 #include "xbmp_tools.h"
 #include "Details/xbmp_tools_dds_loader.cpp"
@@ -8,6 +9,9 @@
 #include "Details/xbmp_tools_exr_loader.cpp"
 #include "Details/xbmp_tools_2d2cube_filter.cpp"
 #include "Details/xbmp_tools_HEPDP_filter.cpp"
+#include "Details/xbmp_tools_lighting.cpp"
+#include "Details/xbmp_tools_mips.cpp"
+
 
 
 

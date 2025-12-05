@@ -8,6 +8,7 @@
 #include <vector>
 #include <cwctype> // for std::towlower
 
+#include "dependencies/xmath/source/xmath.h"
 
 #define XBMP_TOOLS_INLINE __forceinline
 namespace xbmp::tools
@@ -22,6 +23,8 @@ namespace xbmp::tools
 #include "xbmp_tools_writers.h"
 #include "xbmp_tools_atlas.h"
 #include "xbmp_tools_filters.h"
+#include "xbmp_tools_lighting.h"
+#include "xbmp_tools_mips.h"
 
 //---------------------------------------------------------------------------
 // END
