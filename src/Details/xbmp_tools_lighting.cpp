@@ -56,72 +56,76 @@ namespace xbmp::tools::lighting
 
     xmath::fvec2 integrateDFG(float NoV, float linearRoughness, size_t numSamples)
     {
-        xmath::fvec2        r       = {0.0f, 0.0f};
-        const xmath::fvec3  V       = {std::sqrt(1.0f - NoV * NoV), 0.0f, NoV};
-        const float         invN    = 1.0f / static_cast<float>(numSamples);
+        float sumX = 0.0f;
+        float sumY = 0.0f;
+        const xmath::fvec3 V = { std::sqrt(1.0f - NoV * NoV), 0.0f, NoV };
+        const float invN = 1.0f / static_cast<float>(numSamples);
 
-        for (size_t i = 0; i < numSamples; ++i) 
+#pragma omp parallel for reduction(+:sumX,sumY)
+        for (int i = 0; i < static_cast<int>(numSamples); ++i)
         {
-            const xmath::fvec2  u   = hammersley(static_cast<uint32_t>(i), invN);
-            const xmath::fvec3  H   = hemisphereImportanceSampleDggx(u, linearRoughness);
-            const xmath::fvec3  L   = 2.0f * xmath::fvec3::Dot(V, H) * H - V;
-            const float         VoH = saturate( xmath::fvec3::Dot(V, H));
-            const float         NoL = saturate(L.m_Z);
-            const float         NoH = saturate(H.m_Z);
+            const xmath::fvec2 u = hammersley(static_cast<uint32_t>(i), invN);
+            const xmath::fvec3 H = hemisphereImportanceSampleDggx(u, linearRoughness);
+            const xmath::fvec3 L = 2.0f * xmath::fvec3::Dot(V, H) * H - V;
+            const float VoH = saturate(xmath::fvec3::Dot(V, H));
+            const float NoL = saturate(L.m_Z);
+            const float NoH = saturate(H.m_Z);
 
-            if (NoL > 0.0f) 
+            if (NoL > 0.0f)
             {
-                const float v  = Visibility(NoV, NoL, linearRoughness) * NoL * (VoH / NoH);
+                const float v = Visibility(NoV, NoL, linearRoughness) * NoL * (VoH / NoH);
                 const float Fc = pow5(1.0f - VoH);
-                r.m_X         += v * (1.0f - Fc);
-                r.m_Y         += v * Fc;
+                sumX += v * (1.0f - Fc);
+                sumY += v * Fc;
             }
         }
 
-        return {r.m_X * (4.0f * invN), r.m_Y * (4.0f * invN)};
+        return { sumX * (4.0f * invN), sumY * (4.0f * invN) };
     }
 
     void GenerateGGX_BRDF_RG_32FLOAT(xbitmap& Bitmap, int Width, int Height) noexcept
     {
-        const size_t width          = Width;
-        const size_t height         = Height;
-        const size_t numSamples     = 1024;
-        const size_t data_size      = width * height * 2;   // (2 = r,g)
-        const size_t data_byte_size = (data_size + 1) * sizeof(float);        // +1 because xbitmap requires the first 4 bytes as an offset
+        const int width = Width;
+        const int height = Height;
+        const size_t numSamples = 1024;
+        const size_t data_size = static_cast<size_t>(width) * height * 2;
+        const size_t data_byte_size = (data_size + 1) * sizeof(float);
 
         auto data_owner = std::make_unique<float[]>(data_byte_size);
-        auto data       = std::span{ data_owner.get()+2, data_size };
+        auto data = std::span{ data_owner.get() + 1, data_size };
 
-        // set first 4 bytes to zero
-        data_owner[0] = 0;
-        for (size_t y = 0; y < height; ++y) 
+        data_owner[0] = 0.0f;
+
+#pragma omp parallel for
+        for (int y = 0; y < height; ++y)
         {
-            for (size_t x = 0; x < width; ++x) 
+            for (int x = 0; x < width; ++x)
             {
-                const float         NoV             = saturate((static_cast<float>(x) + 0.5f) / static_cast<float>(width));
-                const float         roughness       = saturate((static_cast<float>(height - y) + 0.5f) / static_cast<float>(height));
-                const float         linearRoughness = roughness * roughness;
+                const float NoV = saturate((static_cast<float>(x) + 0.5f) / static_cast<float>(width));
+                const float roughness = saturate((static_cast<float>(height - y) + 0.5f) / static_cast<float>(height));
+                const float linearRoughness = roughness * roughness;
 
-                const xmath::fvec2  dfg             = integrateDFG(NoV, linearRoughness, numSamples);
+                const xmath::fvec2 dfg = integrateDFG(NoV, linearRoughness, numSamples);
 
-                const size_t index = (y * width + x) * 2;
-                data[index]     = dfg.m_X;  // scale / red
-                data[index + 1] = dfg.m_Y;  // bias / green
+                const size_t index = (static_cast<size_t>(y) * width + x) * 2;
+                data[index]     = dfg.m_X;
+                data[index + 1] = dfg.m_Y;
             }
         }
 
         Bitmap.setup
-        ( Width
-        , Height
-        , xbitmap::format::R32G32_FLOAT
-        , data_size * sizeof(float)
-        , std::span<std::byte>{ (std::byte*)data_owner.release(), data_byte_size }
+        (Width
+            , Height
+            , xbitmap::format::R32G32_FLOAT
+            , data_size * sizeof(float)
+            , std::span<std::byte>{reinterpret_cast<std::byte*>(data_owner.release()), data_byte_size}
         , true
-        , 1
-        , 1
-        , false
-        );
+            , 1
+            , 1
+            , false
+            );
     }
+
 
     void GenerateGGX_BRDF_RG_16SFLOAT(xbitmap& Bitmap, int Width, int Height) noexcept
     {
@@ -137,9 +141,11 @@ namespace xbmp::tools::lighting
         // set first 4 bytes to zero
         data_owner[0].m_Value = 0;
         data_owner[1].m_Value = 0;
-        for (size_t y = 0; y < height; ++y) 
+
+#pragma omp parallel for
+        for (int y = 0; y < height; ++y)
         {
-            for (size_t x = 0; x < width; ++x) 
+            for (int x = 0; x < width; ++x)
             {
                 const float         NoV             = saturate((static_cast<float>(x) + 0.5f) / static_cast<float>(width));
                 const float         roughness       = saturate((static_cast<float>(height - y) + 0.5f) / static_cast<float>(height));
