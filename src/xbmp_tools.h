@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 #include <cwctype> // for std::towlower
+#include <functional>
 
 #include "dependencies/xmath/source/xmath.h"
 

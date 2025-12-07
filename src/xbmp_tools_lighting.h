@@ -8,6 +8,7 @@ namespace xbmp::tools::lighting
     void PrefilterCubemap
     ( const xbitmap&                inputCubemap
     , xbitmap&                      specularOutput
+    , std::function<void(float)>    progressCallback    = {}
     , int                           nMips               = -1
     , int                           specularSamples     = 1024
     , diffuse_type                  diffuse_type        = diffuse_type::NONE
