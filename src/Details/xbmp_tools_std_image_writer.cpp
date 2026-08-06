@@ -78,7 +78,11 @@ namespace xbmp::tools::writers
                 const std::uint32_t D = *reinterpret_cast<const std::uint32_t*>(pBitmapData);
                 xcolori       C = xcolori{ D, ColorFmt };
 
-                *pData = C.getDataFromColor({xcolor::format::type::UINT_32_ARGB_8888});
+                // stb_image_write's 4-component writers (png/bmp/tga/jpg) expect byte order R,G,B,A
+                // in memory - UINT_32_RGBA_8888 matches that, UINT_32_ARGB_8888 (alpha-first) does
+                // not, and silently shifts every channel by one byte (true alpha ends up displayed
+                // as red).
+                *pData = C.getDataFromColor({xcolor::format::type::UINT_32_RGBA_8888});
 
                 pData++;
                 pBitmapData += BypePerPixel;
