@@ -38,10 +38,10 @@ namespace xbmp::tools::loader {
             // 4-byte UTF-8: U+10000 to U+10FFFF (for characters outside BMP)
             else if constexpr (sizeof(wchar_t) == 4)
             {
-                result += static_cast<char>(0xF0 | ((unsigned int(wc) >> 18) & 0x07));
-                result += static_cast<char>(0x80 | ((unsigned int(wc) >> 12) & 0x3F));
-                result += static_cast<char>(0x80 | ((unsigned int(wc) >> 6) & 0x3F));
-                result += static_cast<char>(0x80 | (unsigned int(wc) & 0x3F));
+                result += static_cast<char>(0xF0 | ((static_cast<unsigned int>(wc) >> 18) & 0x07));
+                result += static_cast<char>(0x80 | ((static_cast<unsigned int>(wc) >> 12) & 0x3F));
+                result += static_cast<char>(0x80 | ((static_cast<unsigned int>(wc) >> 6) & 0x3F));
+                result += static_cast<char>(0x80 | (static_cast<unsigned int>(wc) & 0x3F));
             }
         }
 

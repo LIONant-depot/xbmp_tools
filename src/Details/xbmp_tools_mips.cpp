@@ -1,5 +1,7 @@
 #include <omp.h>
+#if defined(_MSC_VER)
 #include <intrin.h>
+#endif
 #include <cstdint>
 
 namespace xbmp::tools::mips
