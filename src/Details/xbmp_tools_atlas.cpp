@@ -438,7 +438,7 @@ atlas::rect_wh TheRect2D( atlas::rect_xywhf* const*             pV
     
     for( int f = 0; f < nFuncs; ++f )
     {
-        delete Order[f];
+        delete[] Order[f];                // allocated with new[] above: a plain delete is undefined behaviour (AddressSanitizer: alloc-dealloc-mismatch, at every editor start)
     }
     
     // Make sure that we do return a power of two texture
