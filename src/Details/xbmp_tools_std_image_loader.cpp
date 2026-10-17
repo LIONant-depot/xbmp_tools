@@ -1,6 +1,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "dependencies/stb/stb_image.h"
 #include "dependencies/xstrtool/source/xstrtool.h"
+#include "xbmp_tools_file.h"
 
 namespace xbmp::tools::loader
 {
@@ -203,8 +204,10 @@ namespace xbmp::tools::loader
         int W, H;
         unsigned char* pData;
 
-        if( pData = stbi_load(xstrtool::To(FileName).c_str(), &W, &H, &nChannels, 0); nullptr == pData)
+        auto File = details::OpenFile(FileName, L"rb");
+        if( File == nullptr || (pData = stbi_load_from_file(File.get(), &W, &H, &nChannels, 0)) == nullptr )
             return xerr::create_f<xbmp::tools::state, "Fail to load image">();
+        File.reset();
 
         const auto DataSize      = (W * H * nChannels * sizeof(std::uint8_t));
         const auto TotalDataSize = DataSize + sizeof(int);
@@ -251,8 +254,10 @@ namespace xbmp::tools::loader
         int         W, H;
         float*      pData;
 
-        if( pData = stbi_loadf( xstrtool::To(FileName).c_str(), &W, &H, &nChannels, 0); nullptr == pData)
+        auto File = details::OpenFile(FileName, L"rb");
+        if( File == nullptr || (pData = stbi_loadf_from_file(File.get(), &W, &H, &nChannels, 0)) == nullptr )
             return xerr::create_f<xbmp::tools::state, "Fail to hdr load image" >(); 
+        File.reset();
 
         const auto DataSize      = (W * H * nChannels * sizeof(float));
         const auto TotalDataSize = DataSize + sizeof(int);

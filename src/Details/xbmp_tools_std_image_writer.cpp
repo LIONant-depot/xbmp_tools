@@ -6,6 +6,7 @@
 #pragma warning( pop )
 
 #include "dependencies/xstrtool/source/xstrtool.h"
+#include "xbmp_tools_file.h"
 
 namespace xbmp::tools::writers
 {
@@ -13,24 +14,26 @@ namespace xbmp::tools::writers
 
     xerr SaveSTDImage(std::wstring_view FileName, int W, int H, int Bpp, const std::byte* pData ) noexcept
     {
+        details::file_writer File{ FileName };
+
         if( xstrtool::findI(FileName, L".png") != std::string::npos )
         {
-            if( 0 == stbi_write_png( xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData, W * Bpp / 8))
+            if( 0 == stbi_write_png_to_func( &details::file_writer::Write, &File, W, H, Bpp / 8, pData, W * Bpp / 8) || !File.Close())
                 return xerr::create_f<xbmp::tools::state, "Fail to write a PNG" >(); 
         }
         else if (xstrtool::findI(FileName, L".bmp") != std::string::npos )
         {
-            if (0 == stbi_write_bmp(xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData ) )
+            if (0 == stbi_write_bmp_to_func(&details::file_writer::Write, &File, W, H, Bpp / 8, pData ) || !File.Close() )
                 return xerr::create_f<xbmp::tools::state, "Fail to write a BMP" >();
         }
         else if (xstrtool::findI(FileName, L".tga") != std::string::npos )
         {
-            if (0 == stbi_write_tga(xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData ) )
+            if (0 == stbi_write_tga_to_func(&details::file_writer::Write, &File, W, H, Bpp / 8, pData ) || !File.Close() )
                 return xerr::create_f<xbmp::tools::state, "Fail to write a TGA" >();
         }
         else if (xstrtool::findI(FileName, L".jpg") != std::string::npos )
         {
-            if (0 == stbi_write_jpg(xstrtool::To(FileName).c_str(), W, H, Bpp / 8, pData, 90 ) )
+            if (0 == stbi_write_jpg_to_func(&details::file_writer::Write, &File, W, H, Bpp / 8, pData, 90 ) || !File.Close() )
                 return xerr::create_f<xbmp::tools::state, "Fail to write a JPG" >();
         }
         else if (xstrtool::findI(FileName, L".hdr") != std::string::npos )

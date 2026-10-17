@@ -21,12 +21,12 @@ namespace xbmp::tools::loader
         //
         // Load the image
         //
-        if( auto ret = LoadEXR(&pOut, &Width, &Height, xstrtool::To(FileName).c_str(), &err);  ret != TINYEXR_SUCCESS)
+        if( auto ret = LoadEXR(&pOut, &Width, &Height, xstrtool::UTF16ToUTF8(FileName).c_str(), &err);  ret != TINYEXR_SUCCESS)
         {
             // Display error message
             if (err) 
             {
-                xerr::LogMessage<state::FAILURE>( std::format("[Error]: Trying to load EXR: {} but found error {}", xstrtool::To(FileName), err) );
+                xerr::LogMessage<state::FAILURE>( std::format("[Error]: Trying to load EXR: {} but found error {}", xstrtool::UTF16ToUTF8(FileName), err) );
                 FreeEXRErrorMessage(err); // release memory of error message.
             }
 
@@ -106,12 +106,12 @@ namespace xbmp::tools::loader
         //
         // Load the image
         //
-        if( auto ret = LoadEXR(&pOut, &Width, &Height, xstrtool::To(FileName).c_str(), &err);  ret != TINYEXR_SUCCESS)
+        if( auto ret = LoadEXR(&pOut, &Width, &Height, xstrtool::UTF16ToUTF8(FileName).c_str(), &err);  ret != TINYEXR_SUCCESS)
         {
             // Display error message
             if (err) 
             {
-                xerr::LogMessage<state::FAILURE>(std::format("[Error]: Trying to load HDR EXR: {} but found error: {}", xstrtool::To(FileName), err));
+                xerr::LogMessage<state::FAILURE>(std::format("[Error]: Trying to load HDR EXR: {} but found error: {}", xstrtool::UTF16ToUTF8(FileName), err));
                 FreeEXRErrorMessage(err); // release memory of error message.
             }
 

@@ -1,52 +1,9 @@
 #define TINYDDSLOADER_IMPLEMENTATION
 #include "dependencies/tinyddsloader/tinyddsloader.h"
 #include <optional>
+#include "xbmp_tools_file.h"
 
 namespace xbmp::tools::loader {
-
-    //-----------------------------------------------------------------------------
-
-    inline
-    std::string wstring_view_to_char(std::wstring_view wsv) noexcept
-    {
-        // Worst-case: each wchar_t could take up to 4 bytes in UTF-8
-        std::string result;
-
-        // Best guess reservation
-        result.reserve(wsv.size() * 4);
-
-        for (wchar_t wc : wsv)
-        {
-            // 1-byte UTF-8: ASCII range (U+0000 to U+007F)
-            if (wc <= 0x7F)
-            {
-                result += static_cast<char>(wc);
-            }
-            // 2-byte UTF-8: U+0080 to U+07FF
-            else if (wc <= 0x7FF)
-            {
-                result += static_cast<char>(0xC0 | ((wc >> 6) & 0x1F));
-                result += static_cast<char>(0x80 | (wc & 0x3F));
-            }
-            // 3-byte UTF-8: U+0800 to U+FFFF (excluding surrogate pairs)
-            else if (wc <= 0xFFFF)
-            {
-                result += static_cast<char>(0xE0 | ((wc >> 12) & 0x0F));
-                result += static_cast<char>(0x80 | ((wc >> 6) & 0x3F));
-                result += static_cast<char>(0x80 | (wc & 0x3F));
-            }
-            // 4-byte UTF-8: U+10000 to U+10FFFF (for characters outside BMP)
-            else if constexpr (sizeof(wchar_t) == 4)
-            {
-                result += static_cast<char>(0xF0 | ((static_cast<unsigned int>(wc) >> 18) & 0x07));
-                result += static_cast<char>(0x80 | ((static_cast<unsigned int>(wc) >> 12) & 0x3F));
-                result += static_cast<char>(0x80 | ((static_cast<unsigned int>(wc) >> 6) & 0x3F));
-                result += static_cast<char>(0x80 | (static_cast<unsigned int>(wc) & 0x3F));
-            }
-        }
-
-        return result;
-    }
 
     namespace dds
     {
@@ -249,7 +206,17 @@ namespace xbmp::tools::loader {
 
         DDSFile Image;
 
-        if (auto Err = Image.Load(wstring_view_to_char(FileName).c_str()); Err)
+        // Same results as DDSFile::Load(const char*), which opens the narrow name with std::ifstream
+        auto File = details::OpenFile(FileName, L"rb");
+        if (File == nullptr)
+            return dds::getErrorCode(Result::ErrorFileOpen);
+
+        std::vector<std::uint8_t> Data;
+        if (details::ReadFile(Data, *File) == false || Data.empty())
+            return dds::getErrorCode(Result::ErrorRead);
+        File.reset();
+
+        if (auto Err = Image.Load(std::move(Data)); Err)
         {
             return dds::getErrorCode(Err);
         }
