@@ -6,4 +6,6 @@ namespace xbmp::tools::loader
     xerr LoadEXRImage     ( xbitmap& Bitmap, std::wstring_view FileName ) noexcept;
     xerr LoadHDRSTDImage  ( xbitmap& Bitmap, std::wstring_view FileName ) noexcept;
     xerr LoadHDREXRImage  ( xbitmap& Bitmap, std::wstring_view FileName ) noexcept;
+    xerr LoadTIFFImage    ( xbitmap& Bitmap, std::wstring_view FileName ) noexcept;   // .tif .tiff .dng (8 bits RGBA)
+    xerr LoadHDRTIFFImage ( xbitmap& Bitmap, std::wstring_view FileName ) noexcept;   // .tif .tiff .dng (32 bits float RGBA)
 }

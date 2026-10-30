@@ -38,6 +38,13 @@ rmdir "../dependencies/tinyexr" /S /Q
 git clone https://github.com/syoyo/tinyexr.git "../dependencies/tinyexr"
 if %ERRORLEVEL% GEQ 1 goto :PAUSE
 
+rem ------------------------------------------------------------
+rem TIFF / DNG IMAGE LOADER
+rem ------------------------------------------------------------
+rmdir "../dependencies/tinydng" /S /Q
+git clone https://github.com/syoyo/tinydng.git "../dependencies/tinydng"
+if %ERRORLEVEL% GEQ 1 goto :PAUSE
+
 
 rem ------------------------------------------------------------
 rem Finishing

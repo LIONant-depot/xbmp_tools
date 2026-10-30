@@ -4,12 +4,14 @@ include(${CMAKE_BINARY_DIR}/_deps/xcmake_tools/Common.cmake)
 FetchAndPopulate("https://github.com/benikabocha/tinyddsloader.git" "master")
 FetchAndPopulate("https://github.com/nothings/stb.git"              "master")
 FetchAndPopulate("https://github.com/syoyo/tinyexr.git"             "release")
+FetchAndPopulate("https://github.com/syoyo/tinydng.git"             "release")
 FetchAndPopulate("https://github.com/LIONant-depot/xbitmap.git"     "main")
 FetchAndPopulate("https://github.com/LIONant-depot/xmath.git"       "main")
 FetchAndPopulate("https://github.com/LIONant-depot/xstrtool.git"    "main")
 
 DefineInterfaceComponent(xbmp_tools "dependencies/xcore"
   "src/xbmp_tools.cpp"
+  "src/xbmp_tools_tinydng.c"
   "src/xbmp_tools.h"
   "src/xbmp_tools_atlas.h"
   "src/xbmp_tools_filters.h"
@@ -23,6 +25,7 @@ DefineInterfaceComponent(xbmp_tools "dependencies/xcore"
 #     "${CMAKE_SOURCE_DIR}/dependencies/stb"
 #     "${CMAKE_SOURCE_DIR}/dependencies/tinyddsloader"
 #     "${CMAKE_SOURCE_DIR}/dependencies/tinyexr"
+#     "${CMAKE_SOURCE_DIR}/dependencies/tinydng"
 #   )
 #   endif()
 
