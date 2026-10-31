@@ -127,6 +127,10 @@ namespace xbmp::tools::mips
 
     static auto kTriangleKernel = computeTriangleKernel();
 
+    // The sRGB transfer curve (IEC 61966-2-1), not a 2.2 power: they differ most in the darks (a 0 / 64 sRGB checkerboard: 44 vs 47)
+    inline float SRGBToLinear(float c) noexcept { return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f); }
+    inline float LinearToSRGB(float c) noexcept { c = std::clamp(c, 0.0f, 1.0f); return c <= 0.0031308f ? c * 12.92f : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f; }
+
     // Helper to get wrapped coordinate
     int wrapCoord(int coord, int size, xbitmap::wrap_mode mode, bool force_clamp = false)
     {
@@ -300,6 +304,29 @@ namespace xbmp::tools::mips
             break;
         }
 
+        // The alpha of a texel of a mip (cutout coverage, below): 8 bit, half or float RGBA
+        const bool bCoverage = preserveAlphaCoverage && channels >= 4;
+        auto AlphaAt = [&](std::span<std::byte> S, std::size_t i) -> float
+        {
+            if (is_int)  return reinterpret_cast<const xcolori*>(S.data())[i].m_A / 255.0f;
+            if (is_half) { xmath::half h; h.m_Value = reinterpret_cast<const std::uint16_t*>(S.data())[i * 4 + 3]; return static_cast<float>(h); }
+            return reinterpret_cast<const float*>(S.data())[i * 4 + 3];
+        };
+        auto SetAlpha = [&](std::span<std::byte> S, std::size_t i, float a)
+        {
+            if (is_int)       reinterpret_cast<xcolori*>(S.data())[i].m_A = static_cast<std::uint8_t>(std::clamp(a * 255.0f + 0.5f, 0.0f, 255.0f));
+            else if (is_half) reinterpret_cast<std::uint16_t*>(S.data())[i * 4 + 3] = xmath::half(a).m_Value;
+            else              reinterpret_cast<float*>(S.data())[i * 4 + 3] = a;
+        };
+        auto Coverage = [&](std::span<std::byte> S, std::size_t n, float Scale) -> double
+        {
+            std::size_t Pass = 0;
+            for (std::size_t i = 0; i < n; ++i) Pass += std::min(1.0f, AlphaAt(S, i) * Scale) > alphaCutoff;
+            return static_cast<double>(Pass) / static_cast<double>(n);
+        };
+        std::vector<double> TargetCoverage(face_count, 0.0);
+        if (bCoverage) for (int face = 0; face < face_count; ++face) TargetCoverage[face] = Coverage(Bitmap.getMip<std::byte>(0, face), static_cast<std::size_t>(orig_w) * orig_h, 1.0f);
+
         const bool use_log_filter = (is_float32 || is_half) && !renormalizeNormals && (filter == mips_filter_type::LANCZOS || filter == mips_filter_type::KAISER);
         const int log_channels = (preserveAlphaCoverage && channels >= 4) ? channels - 1 : channels;
 
@@ -342,9 +369,9 @@ namespace xbmp::tools::mips
                             if (channels >= 4) color[3] = pixel.m_A / 255.0f;
                             if (is_srgb && !renormalizeNormals)
                             {
-                                color[0] = std::pow(color[0], 2.2f);
-                                color[1] = std::pow(color[1], 2.2f);
-                                color[2] = std::pow(color[2], 2.2f);
+                                color[0] = SRGBToLinear(color[0]);
+                                color[1] = SRGBToLinear(color[1]);
+                                color[2] = SRGBToLinear(color[2]);
                                 // A linear
                             }
                         }
@@ -378,9 +405,6 @@ namespace xbmp::tools::mips
                                     color[c] = std::max(0.0f, color[c]);
                                 }
                             }
-                        }
-                        if (preserveAlphaCoverage && channels >= 4) {
-                            color[3] = (color[3] > alphaCutoff) ? 1.0f : 0.0f;
                         }
                         if (use_log_filter) {
                             for (int c = 0; c < log_channels; ++c) {
@@ -614,9 +638,9 @@ namespace xbmp::tools::mips
                             float a = (channels >= 4) ? accum[3] : 1.0f;
                             if (is_srgb && !renormalizeNormals)
                             {
-                                r = std::pow(std::clamp(r, 0.0f, 1.0f), 1.0f / 2.2f);
-                                g = std::pow(std::clamp(g, 0.0f, 1.0f), 1.0f / 2.2f);
-                                b = std::pow(std::clamp(b, 0.0f, 1.0f), 1.0f / 2.2f);
+                                r = LinearToSRGB(r);
+                                g = LinearToSRGB(g);
+                                b = LinearToSRGB(b);
                                 // A linear
                             }
                             xcolori pixel;
@@ -643,6 +667,32 @@ namespace xbmp::tools::mips
                             }
                         }
                     }
+                }
+            }
+
+            // Cutout alpha keeps its coverage (Castano 2010): this mip's alpha (filtered like any channel) is scaled so the fraction of
+            // texels above the cutoff is mip 0's - thresholding then averaging (what this did before) kept the mean, and thin features
+            // (grass, fences, leaves) fell under the cutoff from the first mip on
+            if (bCoverage)
+            {
+                const std::size_t n = static_cast<std::size_t>(cur_w) * cur_h;
+#pragma omp parallel for
+                for (int face = 0; face < face_count; ++face)
+                {
+                    auto       Span   = Bitmap.getMip<std::byte>(level, face);
+                    const auto Target = TargetCoverage[face];
+                    if (Target <= 0.0 || Target >= 1.0) continue;   // nothing or everything passes: scaling cannot change it
+
+                    // ponytail: a full pass per search step (~30 x the texels of the mip), a histogram of alpha if it shows in the profile
+                    float Lo = 0.0f, Hi = 1.0f;
+                    while (Coverage(Span, n, Hi) < Target && Hi < 1024.0f) Hi *= 2.0f;
+                    for (int i = 0; i < 24; ++i)
+                    {
+                        const float Mid = 0.5f * (Lo + Hi);
+                        (Coverage(Span, n, Mid) < Target ? Lo : Hi) = Mid;
+                    }
+                    const float Scale = std::abs(Coverage(Span, n, Lo) - Target) < std::abs(Coverage(Span, n, Hi) - Target) ? Lo : Hi;
+                    for (std::size_t i = 0; i < n; ++i) SetAlpha(Span, i, std::min(1.0f, AlphaAt(Span, i) * Scale));
                 }
             }
         }
