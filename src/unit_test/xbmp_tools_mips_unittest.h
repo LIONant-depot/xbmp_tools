@@ -6,6 +6,8 @@
 #include <cmath>
 #include <cstdio>
 #include <vector>
+#include <array>
+#include <algorithm>
 
 namespace xbmp::tools::mips::unit_test
 {
@@ -113,11 +115,60 @@ namespace xbmp::tools::mips::unit_test
         Check(std::abs((P.m_R / 127.5 - 1.0) - 0.8) <= 0.02, "x of the last mip of a constant normal (0.8, 0, 0.6)", P.m_R / 127.5 - 1.0, 0.8);
     }
 
+    //------------------------------------------------------------------------------
+    // An odd size keeps every texel: a 3 x 1 linear row (0, 0, 255) has one texel at mip 1, the average of all three (85) with a box;
+    // and a mirrored row gives the same mip (nothing is dropped on one side)
+
+    inline void TestOddSizes()
+    {
+        std::printf("Odd sizes keep every texel\n");
+        auto Row = [](std::array<std::uint8_t, 3> V, mips_filter_type F)
+        {
+            auto B = MakeRGBA(3, 1, xbitmap::color_space::LINEAR, [&](int x, int) { return xcolori{ V[x], V[x], V[x], 255 }; });
+            B.setUWrapMode(xbitmap::wrap_mode::CLAMP_TO_EDGE); B.setVWrapMode(xbitmap::wrap_mode::CLAMP_TO_EDGE);
+            GenerateMipMaps(B, 1, false, F);
+            return double(B.getMip<xcolori>(1)[0].m_R);
+        };
+        Check(std::abs(Row({ 0, 0, 255 }, mips_filter_type::BOX) - 85.0) <= 1.0, "box mip of a 3 x 1 row (0, 0, 255)", Row({ 0, 0, 255 }, mips_filter_type::BOX), 85.0);
+        const double L = Row({ 0, 0, 255 }, mips_filter_type::KAISER), R = Row({ 255, 0, 0 }, mips_filter_type::KAISER);
+        Check(std::abs(L - R) <= 1.0, "kaiser: (0, 0, 255) and its mirror (255, 0, 0) give the same mip", L, R);
+    }
+
+    //------------------------------------------------------------------------------
+    // The chain is filtered in float: each mip from the previous mip's unrounded values, not its 8-bit copy. Dark sRGB noise (where an
+    // 8-bit step is large in linear light) against a float box chain computed here: every mip within 1 step
+
+    inline void TestNoDriftInTheChain()
+    {
+        std::printf("The mip chain does not drift (dark sRGB noise, box)\n");
+        constexpr int N = 256;
+        auto ToLin = [](double c) { c /= 255.0; return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4); };
+        auto ToSRGB = [](double c) { c = std::clamp(c, 0.0, 1.0); return 255.0 * (c <= 0.0031308 ? c * 12.92 : 1.055 * std::pow(c, 1.0 / 2.4) - 0.055); };
+        auto B = MakeRGBA(N, N, xbitmap::color_space::SRGB, [](int x, int y) { const std::uint8_t v = std::uint8_t(Hash(std::uint32_t(x * 7919 + y * 104729)) % 13); return xcolori{ v, v, v, 255 }; });
+        std::vector<double> Ref(N * N);
+        { auto P = B.getMip<xcolori>(0); for (int i = 0; i < N * N; ++i) Ref[i] = ToLin(P[i].m_R); }
+        GenerateMipMaps(B, 1, false, mips_filter_type::BOX);
+        double Worst = 0; int WorstMip = 0;
+        for (int m = 1, w = N / 2; w >= 1; ++m, w /= 2)
+        {
+            std::vector<double> Next(w * w);
+            for (int y = 0; y < w; ++y) for (int x = 0; x < w; ++x)
+                Next[x + y * w] = 0.25 * (Ref[2 * x + 2 * y * 2 * w] + Ref[2 * x + 1 + 2 * y * 2 * w] + Ref[2 * x + (2 * y + 1) * 2 * w] + Ref[2 * x + 1 + (2 * y + 1) * 2 * w]);
+            Ref.swap(Next);
+            auto P = B.getMip<xcolori>(m);
+            for (int i = 0; i < w * w; ++i) if (const double e = std::abs(P[i].m_R - ToSRGB(Ref[i])); e > Worst) { Worst = e; WorstMip = m; }
+        }
+        char What[64]; std::snprintf(What, sizeof(What), "worst error against a float chain (at mip %d)", WorstMip);
+        Check(Worst <= 1.0, What, Worst, 1.0);
+    }
+
     inline int Test()
     {
         TestSRGBLinearFiltering();
         TestAlphaCoverage();
         TestNormalKeepsTilt();
+        TestOddSizes();
+        TestNoDriftInTheChain();
         std::printf("%s (%d failed)\n", s_Failures ? "FAILED" : "ALL OK", s_Failures);
         return s_Failures;
     }

@@ -66,66 +66,9 @@ namespace xbmp::tools::mips
     constexpr float kKaiserBeta = 4.0f;
     constexpr float kKaiserHalfWidth = static_cast<float>(kKaiserRadius);
 
-    // Precompute kernel weights for downsampling (separable, normalized)
-    std::array<float, 2 * kKaiserRadius + 1> computeKaiserKernel()
-    {
-        std::array<float, 2 * kKaiserRadius + 1> kernel{};
-        float sum = 0.0f;
-        for (int i = -kKaiserRadius; i <= kKaiserRadius; ++i)
-        {
-            float x = static_cast<float>(i) - 0.5f;
-            float sinc = (std::abs(x) < 1e-10f) ? 1.0f : static_cast<float>(std::sin(PI * x / 2.0f) / (PI * x / 2.0f));
-            kernel[i + kKaiserRadius] = sinc * kaiser(x, kKaiserBeta, kKaiserHalfWidth);
-            sum += kernel[i + kKaiserRadius];
-        }
-
-        for (auto& w : kernel) w /= sum; // Normalize
-        return kernel;
-    }
-
-    static auto kKaiserKernel = computeKaiserKernel();
-
     constexpr int   kLanczosRadius = 3;
     constexpr float kLanczosA = 3.0f;
-
-    std::array<float, 2 * kLanczosRadius + 1> computeLanczosKernel()
-    {
-        std::array<float, 2 * kLanczosRadius + 1> kernel{};
-        float sum = 0.0f;
-        for (int i = -kLanczosRadius; i <= kLanczosRadius; ++i)
-        {
-            float x = static_cast<float>(i) - 0.5f;
-            float sinc_val = (std::abs(x) < 1e-10f) ? 1.0f : static_cast<float>(std::sin(PI * x / 2.0f) / (PI * x / 2.0f));
-            float window = static_cast<float>((std::abs(x) < 1e-10f) ? 1.0f : ((std::abs(x) < kLanczosA) ? std::sin(PI * x / kLanczosA) / (PI * x / kLanczosA) : 0.0f));
-            kernel[i + kLanczosRadius] = sinc_val * window;
-            sum += kernel[i + kLanczosRadius];
-        }
-
-        for (auto& w : kernel) w /= sum; // Normalize
-        return kernel;
-    }
-
-    static auto kLanczosKernel = computeLanczosKernel();
-
     constexpr int   kTriangleRadius = 2;
-    std::array<float, 2 * kTriangleRadius + 1> computeTriangleKernel()
-    {
-        std::array<float, 2 * kTriangleRadius + 1> kernel{};
-        float sum = 0.0f;
-        constexpr float tent_width = 2.0f;
-        for (int i = -kTriangleRadius; i <= kTriangleRadius; ++i)
-        {
-            float x = static_cast<float>(i) - 0.5f;
-            float tent = (std::abs(x) < tent_width) ? std::max(0.0f, 1.0f - std::abs(x) / tent_width) : 0.0f;
-            kernel[i + kTriangleRadius] = tent;
-            sum += tent;
-        }
-
-        for (auto& w : kernel) w /= sum; // Normalize
-        return kernel;
-    }
-
-    static auto kTriangleKernel = computeTriangleKernel();
 
     // The sRGB transfer curve (IEC 61966-2-1), not a 2.2 power: they differ most in the darks (a 0 / 64 sRGB checkerboard: 44 vs 47)
     inline float SRGBToLinear(float c) noexcept { return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f); }
@@ -281,28 +224,50 @@ namespace xbmp::tools::mips
         Bitmap.setVWrapMode(v_wrap);
         Bitmap.setColorSpace(old_bitmap_local.getColorSpace());
 
-        // Select kernel and radius
-        std::span<const float> kernel_span;
-        int radius = 0;
-        bool is_box = false;
-        switch (filter)
+        // The filter as a function of the distance t in source texels for a 2:1 reduction, and its support (|t| < support)
+        const bool  is_box  = filter == mips_filter_type::BOX;
+        const float support = filter == mips_filter_type::TRIANGLE ? float(kTriangleRadius) : filter == mips_filter_type::LANCZOS ? float(kLanczosRadius) : float(kKaiserRadius);
+        auto Kernel = [&](float t) -> float
         {
-        case mips_filter_type::BOX:
-            is_box = true;
-            break;
-        case mips_filter_type::TRIANGLE:
-            radius = kTriangleRadius;
-            kernel_span = kTriangleKernel;
-            break;
-        case mips_filter_type::LANCZOS:
-            radius = kLanczosRadius;
-            kernel_span = kLanczosKernel;
-            break;
-        case mips_filter_type::KAISER:
-            radius = kKaiserRadius;
-            kernel_span = kKaiserKernel;
-            break;
-        }
+            const auto sinc = [](float z) { return std::abs(z) < 1e-6f ? 1.0f : std::sin(z) / z; };
+            switch (filter)
+            {
+            case mips_filter_type::TRIANGLE: return std::max(0.0f, 1.0f - std::abs(t) / 2.0f);
+            case mips_filter_type::LANCZOS:  return std::abs(t) < kLanczosA ? sinc(float(PI) * t / 2.0f) * sinc(float(PI) * t / kLanczosA) : 0.0f;
+            default:                         return sinc(float(PI) * t / 2.0f) * kaiser(t, kKaiserBeta, kKaiserHalfWidth);
+            }
+        };
+
+        // The source texels (wrapped) and weights of every output texel along one axis, for any ratio - an odd size (5 -> 2 is 2.5:1) keeps
+        // every texel: the box covers the exact footprint, the kernels are stretched to it (at 2:1 these are the old fixed taps exactly)
+        using weights = std::vector<std::vector<std::pair<int, float>>>;
+        auto MakeWeights = [&](int prev, int cur, xbitmap::wrap_mode mode) -> weights
+        {
+            weights    W(cur);
+            const float r = float(prev) / float(cur);
+            for (int x = 0; x < cur; ++x)
+            {
+                auto& Taps = W[x];
+                if (is_box)
+                {
+                    const float lo = x * r, hi = (x + 1) * r;
+                    for (int i = int(std::floor(lo)); i < int(std::ceil(hi)); ++i)
+                        if (const float w = std::min(hi, float(i + 1)) - std::max(lo, float(i)); w > 0.0f) Taps.emplace_back(wrapCoord(i, prev, mode, is_cube), w);
+                }
+                else
+                {
+                    const float c = (x + 0.5f) * r - 0.5f, s = 2.0f / std::max(r, 1.0f);    // (a 1-texel axis stays 1: r = 1, no stretch)
+                    for (int i = int(std::floor(c - support / s)); i <= int(std::ceil(c + support / s)); ++i)
+                        if (const float w = Kernel((i - c) * s); w != 0.0f) Taps.emplace_back(wrapCoord(i, prev, mode, is_cube), w);
+                }
+                float Sum = 0; for (auto& T : Taps) Sum += T.second;
+                for (auto& T : Taps) T.second /= Sum;
+            }
+            return W;
+        };
+
+        // The previous mip in float (linear light for sRGB, before any rounding): each mip is filtered from it, not from its 8-bit copy
+        std::vector<std::vector<float>> PrevF(face_count), CurF(face_count);
 
         // The alpha of a texel of a mip (cutout coverage, below): 8 bit, half or float RGBA
         const bool bCoverage = preserveAlphaCoverage && channels >= 4;
@@ -337,12 +302,16 @@ namespace xbmp::tools::mips
             const int prev_h = std::max(1, orig_h >> (level - 1));
             const int cur_w = std::max(1, prev_w / 2);
             const int cur_h = std::max(1, prev_h / 2);
+            const weights Wx = MakeWeights(prev_w, cur_w, u_wrap);
+            const weights Wy = MakeWeights(prev_h, cur_h, v_wrap);
 
 #pragma omp parallel for
             for (int face = 0; face < face_count; ++face)
             {
                 auto prev_span = Bitmap.getMip<std::byte>(level - 1, face);
                 auto cur_span = Bitmap.getMip<std::byte>(level, face);
+                const float* pPrevF = level > 1 ? PrevF[face].data() : nullptr;      // mip 0 is read from its bytes
+                CurF[face].assign(static_cast<std::size_t>(cur_w) * cur_h * channels, 0.0f);
 
                 // Temp buffer for horizontal pass (float accum for quality)
                 std::vector<float> horiz(static_cast<std::size_t>(cur_w) * prev_h * channels, 0.0f);
@@ -358,6 +327,14 @@ namespace xbmp::tools::mips
                         x = wrapCoord(x, prev_w, u_wrap, is_cube);
                         y = wrapCoord(y, prev_h, v_wrap, is_cube);
                         std::array<float, 4> color{ 0.0f, 0.0f, 0.0f, 1.0f }; // Default A=1
+
+                        if (pPrevF)     // the previous mip unrounded (already decoded, linear, clean)
+                        {
+                            const float* f = &pPrevF[(static_cast<std::size_t>(y) * prev_w + x) * channels];
+                            for (int c = 0; c < channels; ++c) color[c] = f[c];
+                            if (use_log_filter) for (int c = 0; c < log_channels; ++c) color[c] = std::log1p(color[c]);
+                            return color;
+                        }
 
                         const std::byte* ptr = &prev_span[(y * prev_w + x) * bytes_per_pixel];
                         if (is_int)
@@ -459,57 +436,20 @@ namespace xbmp::tools::mips
                 {
                     for (int x = 0; x < cur_w; ++x)
                     {
-                        const int sx = x * 2;
                         float* hptr = &horiz[(y * cur_w + x) * channels];
-                        if (is_box)
+                        for (const auto& [sx, weight] : Wx[x])
                         {
-                            auto c0 = sample(sx, y);
-                            auto c1 = sample(sx + 1, y);
-                            for (int c = 0; c < channels; ++c)
-                            {
-                                hptr[c] = (c0[c] + c1[c]) * 0.5f;
-                            }
-                        }
-                        else
-                        {
-                            std::array<float, 4> accum{ 0.0f, 0.0f, 0.0f, 0.0f };
-                            for (int tap = -radius; tap <= radius; ++tap)
-                            {
-                                float weight = kernel_span[tap + radius];
-                                auto scolor = sample(sx + tap, y);
-                                for (int c = 0; c < channels; ++c)
-                                {
-                                    accum[c] += weight * scolor[c];
-                                }
-                            }
-                            for (int c = 0; c < channels; ++c)
-                            {
-                                hptr[c] = accum[c];
-                            }
+                            const auto scolor = sample(sx, y);
+                            for (int c = 0; c < channels; ++c) hptr[c] += weight * scolor[c];
                         }
 
-                        if (use_toksvig) {
+                        if (use_toksvig)
+                        {
                             float* hnptr = &horiz_normal[(y * cur_w + x) * normal_channels];
-                            if (is_box) {
-                                auto n0 = sample_normal(sx, y);
-                                auto n1 = sample_normal(sx + 1, y);
-                                for (int c = 0; c < normal_channels; ++c) {
-                                    hnptr[c] = (n0[c] + n1[c]) * 0.5f;
-                                }
-                            }
-                            else {
-                                std::array<float, 3> accum_n{ 0.0f, 0.0f, 0.0f };
-                                for (int tap = -radius; tap <= radius; ++tap)
-                                {
-                                    float weight = kernel_span[tap + radius];
-                                    auto sn = sample_normal(sx + tap, y);
-                                    for (int c = 0; c < normal_channels; ++c) {
-                                        accum_n[c] += weight * sn[c];
-                                    }
-                                }
-                                for (int c = 0; c < normal_channels; ++c) {
-                                    hnptr[c] = accum_n[c];
-                                }
+                            for (const auto& [sx, weight] : Wx[x])
+                            {
+                                const auto sn = sample_normal(sx, y);
+                                for (int c = 0; c < normal_channels; ++c) hnptr[c] += weight * sn[c];
                             }
                         }
                     }
@@ -521,38 +461,11 @@ namespace xbmp::tools::mips
                 {
                     for (int x = 0; x < cur_w; ++x)
                     {
-                        const int sy = y * 2;
                         std::array<float, 4> accum{ 0.0f, 0.0f, 0.0f, 0.0f };
-                        if (is_box)
+                        for (const auto& [sy, weight] : Wy[y])
                         {
-                            auto c0 = std::array<float, 4>{};
-                            auto c1 = std::array<float, 4>{};
-                            int wrapped_sy = wrapCoord(sy, prev_h, v_wrap, is_cube);
-                            int wrapped_sy1 = wrapCoord(sy + 1, prev_h, v_wrap, is_cube);
-                            const float* h0 = &horiz[(wrapped_sy * cur_w + x) * channels];
-                            const float* h1 = &horiz[(wrapped_sy1 * cur_w + x) * channels];
-                            for (int c = 0; c < channels; ++c)
-                            {
-                                c0[c] = h0[c];
-                                c1[c] = h1[c];
-                            }
-                            for (int c = 0; c < channels; ++c)
-                            {
-                                accum[c] = (c0[c] + c1[c]) * 0.5f;
-                            }
-                        }
-                        else
-                        {
-                            for (int tap = -radius; tap <= radius; ++tap)
-                            {
-                                float weight = kernel_span[tap + radius];
-                                int wrapped_y = wrapCoord(sy + tap, prev_h, v_wrap, is_cube);
-                                const float* hptr = &horiz[(wrapped_y * cur_w + x) * channels];
-                                for (int c = 0; c < channels; ++c)
-                                {
-                                    accum[c] += weight * hptr[c];
-                                }
-                            }
+                            const float* hptr = &horiz[(sy * cur_w + x) * channels];
+                            for (int c = 0; c < channels; ++c) accum[c] += weight * hptr[c];
                         }
 
                         if (use_log_filter) {
@@ -564,30 +477,10 @@ namespace xbmp::tools::mips
 
                         std::array<float, 3> accum_n{ 0.0f, 0.0f, 0.0f };
                         if (use_toksvig) {
-                            if (is_box) {
-                                auto n0 = std::array<float, 3>{};
-                                auto n1 = std::array<float, 3>{};
-                                int wrapped_sy = wrapCoord(sy, prev_h, v_wrap, is_cube);
-                                int wrapped_sy1 = wrapCoord(sy + 1, prev_h, v_wrap, is_cube);
-                                const float* hn0 = &horiz_normal[(wrapped_sy * cur_w + x) * normal_channels];
-                                const float* hn1 = &horiz_normal[(wrapped_sy1 * cur_w + x) * normal_channels];
-                                for (int c = 0; c < normal_channels; ++c) {
-                                    n0[c] = hn0[c];
-                                    n1[c] = hn1[c];
-                                }
-                                for (int c = 0; c < normal_channels; ++c) {
-                                    accum_n[c] = (n0[c] + n1[c]) * 0.5f;
-                                }
-                            }
-                            else {
-                                for (int tap = -radius; tap <= radius; ++tap) {
-                                    float weight = kernel_span[tap + radius];
-                                    int wrapped_y = wrapCoord(sy + tap, prev_h, v_wrap, is_cube);
-                                    const float* hnptr = &horiz_normal[(wrapped_y * cur_w + x) * normal_channels];
-                                    for (int c = 0; c < normal_channels; ++c) {
-                                        accum_n[c] += weight * hnptr[c];
-                                    }
-                                }
+                            for (const auto& [sy, weight] : Wy[y])
+                            {
+                                const float* hnptr = &horiz_normal[(sy * cur_w + x) * normal_channels];
+                                for (int c = 0; c < normal_channels; ++c) accum_n[c] += weight * hnptr[c];
                             }
 
                             float len_sq = accum_n[0] * accum_n[0] + accum_n[1] * accum_n[1] + accum_n[2] * accum_n[2];
@@ -627,6 +520,10 @@ namespace xbmp::tools::mips
                                 }
                             }
                         }
+
+                        // The unrounded value, for the next mip (8-bit formats clamped as they are stored)
+                        float* fcur = &CurF[face][(static_cast<std::size_t>(y) * cur_w + x) * channels];
+                        for (int c = 0; c < channels; ++c) fcur[c] = is_int ? std::clamp(accum[c], 0.0f, 1.0f) : accum[c];
 
                         // Store
                         std::byte* optr = &cur_span[(y * cur_w + x) * bytes_per_pixel];
@@ -692,9 +589,15 @@ namespace xbmp::tools::mips
                         (Coverage(Span, n, Mid) < Target ? Lo : Hi) = Mid;
                     }
                     const float Scale = std::abs(Coverage(Span, n, Lo) - Target) < std::abs(Coverage(Span, n, Hi) - Target) ? Lo : Hi;
-                    for (std::size_t i = 0; i < n; ++i) SetAlpha(Span, i, std::min(1.0f, AlphaAt(Span, i) * Scale));
+                    for (std::size_t i = 0; i < n; ++i)
+                    {
+                        SetAlpha(Span, i, std::min(1.0f, AlphaAt(Span, i) * Scale));
+                        CurF[face][i * channels + 3] = std::min(1.0f, CurF[face][i * channels + 3] * Scale);
+                    }
                 }
             }
+
+            PrevF.swap(CurF);
         }
     }
 }
